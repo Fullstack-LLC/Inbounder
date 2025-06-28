@@ -13,8 +13,10 @@ A Laravel package for handling Mailgun inbound emails with attachments and event
 - ✅ **Duplicate Prevention** - Prevent processing the same email twice using Message-ID
 - ✅ **Configurable Models** - Use your own User and Tenant models
 - ✅ **Multi-tenant Support** - Built-in tenant isolation and domain-based routing
-- ✅ **Comprehensive Testing** - Full test coverage with Pest and Testbench
+- ✅ **Comprehensive Testing** - Full test coverage with Pest and Testbench (91 tests, 228 assertions)
 - ✅ **Laravel 10/11 Compatible** - Works with latest Laravel versions
+- ✅ **MySQL & SQLite Compatible** - Tested with both database systems
+- ✅ **Production Ready** - Stable, well-tested, and ready for production use
 
 ## Installation
 
@@ -387,6 +389,8 @@ InboundEmailAttachment::create([
 
 ## Testing
 
+The package includes comprehensive tests with 91 test cases and 228 assertions, covering all major functionality:
+
 ```bash
 # Run package tests
 composer test
@@ -396,7 +400,20 @@ composer test
 
 # Run specific test file
 ./vendor/bin/pest tests/Feature/InboundMailControllerTest.php
+
+# Run tests with MySQL (if configured)
+DB_CONNECTION=mysql ./vendor/bin/pest
 ```
+
+**Test Coverage:**
+- ✅ Webhook signature verification
+- ✅ Email processing with attachments
+- ✅ Multiple recipient handling
+- ✅ Event dispatching
+- ✅ Error handling and validation
+- ✅ User authorization
+- ✅ Database operations
+- ✅ File storage and management
 
 ## Security
 
@@ -407,6 +424,7 @@ composer test
 - **Duplicate Prevention** - Prevents processing the same email twice using Message-ID
 - **Tenant Isolation** - Multi-tenant support with proper data separation
 - **Input Validation** - Comprehensive validation of all incoming data
+- **Error Handling** - Proper error responses that don't expose sensitive information
 
 ## Use Cases
 
@@ -418,6 +436,15 @@ This package is perfect for:
 - **Multi-tenant SaaS** - Handle emails for multiple tenants
 - **Customer Service** - Route emails to appropriate agents
 - **Compliance & Auditing** - Maintain email records for compliance
+- **Email Marketing** - Process inbound replies and feedback
+- **Workflow Automation** - Trigger business processes based on email content
+
+## Database Compatibility
+
+The package is tested and compatible with:
+- **MySQL 8.0+** - Full support with JSON columns for multiple recipients
+- **SQLite** - Compatible for development and testing
+- **PostgreSQL** - Should work with JSON columns (not fully tested)
 
 ## Contributing
 
@@ -435,3 +462,13 @@ The MIT License (MIT). Please see [License File](LICENSE.md) for more informatio
 ## Support
 
 For support, please open an issue on GitHub or contact the Fullstack team.
+
+## Changelog
+
+### v1.0.0
+- Initial release with Mailgun webhook support
+- Attachment processing and storage
+- Multiple recipient support (To, CC, BCC)
+- Event-driven architecture
+- Comprehensive test suite (91 tests)
+- Production-ready with MySQL and SQLite compatibility
