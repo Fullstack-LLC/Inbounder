@@ -7,7 +7,7 @@ A Laravel package for handling Mailgun inbound emails with attachments and event
 - ✅ **Mailgun Webhook Integration** - Handle inbound emails from Mailgun with proper webhook compliance
 - ✅ **Signature Verification** - Secure webhook signature validation with timestamp checking
 - ✅ **Attachment Processing** - Save and manage email attachments with size limits and organized storage
-- ✅ **Multiple Recipient Support** - Handle emails with multiple To, CC, and BCC recipients
+- ✅ **Multiple Recipient Support** - Handle emails with multiple To, CC, and BCC recipients, with accurate recipient counting
 - ✅ **Event-Driven Architecture** - Extensible with Laravel events for custom processing
 - ✅ **User Authorization** - Role and permission-based access control with Spatie Laravel Permission
 - ✅ **Duplicate Prevention** - Prevent processing the same email twice using Message-ID
@@ -184,9 +184,9 @@ $primaryRecipient = $email->getPrimaryRecipient();
 $isRecipient = $email->isRecipient('jane@example.com');
 // Returns: true
 
-// Get total recipient count
+// Get total recipient count (sum of all To, CC, and BCC)
 $totalCount = $email->getTotalRecipientCount();
-// Returns: 4
+// Returns: 6 (for 2 To, 2 CC, 2 BCC)
 
 // Access individual recipient arrays
 $toEmails = $email->to_emails;     // ['john@example.com', 'jane@example.com']
@@ -196,6 +196,9 @@ $bccEmails = $email->bcc_emails;   // ['bcc@example.com']
 // The original single fields are still available for backward compatibility
 $originalToEmail = $email->to_email;  // 'john@example.com' (first To email)
 $originalToName = $email->to_name;    // 'John Doe'
+
+// The recipient_count column in the database is always kept in sync with the sum of all recipients, so you can filter or report on it reliably:
+$countFromDb = $email->recipient_count; // Always matches getTotalRecipientCount()
 ```
 
 **Email Address Parsing:**

@@ -10,6 +10,7 @@ use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\DB;
 
 class InboundEmailService
 {
@@ -47,54 +48,41 @@ class InboundEmailService
     public function processInboundEmail(Request $request): InboundEmail
     {
         try {
-            // Extract email data first (without sender info)
+            // Extract email data
             $emailData = $this->extractEmailData($request);
-            $attachments = $this->extractAttachments($request);
 
-            // Authorize the sender
+            // Authorize sender
             $this->authorizeSender($emailData['from_email']);
-
-            // Add sender info to email data
-            $emailData['sender_id'] = $this->sender->id;
-            $emailData['tenant_id'] = $this->sender->tenant_id;
 
             // Check for duplicates
             $this->checkForDuplicates($emailData['message_id']);
 
-            // Dispatch event for email received
-            if (config('inbounder.events.dispatch_events', true)) {
-                event(new InboundEmailReceived($emailData, $attachments, $request->all()));
-            }
+            // Resolve tenant
+            $tenant = $this->resolveTenantByDomain($emailData['domain'] ?? 'default');
+
+            // Add user and tenant IDs
+            $emailData['sender_id'] = $this->sender->id;
+            $emailData['tenant_id'] = $tenant->id;
 
             // Create the email record
             $email = $this->createEmailRecord($emailData);
 
             // Process attachments
-            $this->processAttachments($attachments, $email->id, $request);
+            $attachments = $this->extractAttachments($request);
+            if (! empty($attachments)) {
+                $this->processAttachments($attachments, $email->id, $request);
+            }
 
-            // Dispatch success event
-            if (config('inbounder.events.dispatch_events', true)) {
+            // Dispatch events if enabled
+            if (config('inbounder.events.enabled', true)) {
+                event(new InboundEmailReceived($emailData, $attachments, $request->all()));
                 event(new InboundEmailProcessed($email, $attachments));
             }
 
             return $email;
-
         } catch (Exception $e) {
-            // Dispatch failure event
-            if (config('inbounder.events.dispatch_events', true)) {
-                // Try to extract email data for the event, but don't fail if we can't
-                $emailData = [];
-
-                try {
-                    $emailData = $this->extractEmailData($request);
-                } catch (Exception $extractException) {
-                    // If we can't extract email data, use empty array
-                    $emailData = [
-                        'message_id' => $this->extractMessageId($request),
-                        'from_email' => $this->extractSenderEmail($request),
-                        'to_email' => $this->extractRecipientEmail($request),
-                    ];
-                }
+            // Dispatch failure event if enabled
+            if (config('inbounder.events.enabled', true)) {
                 event(new InboundEmailFailed($emailData, $e->getMessage(), $request->all()));
             }
 
@@ -107,22 +95,26 @@ class InboundEmailService
      */
     private function extractEmailData(Request $request): array
     {
+        $to = $this->extractToEmails($request);
+        $cc = $this->extractCcEmails($request);
+        $bcc = $this->extractBccEmails($request);
+
         $emailData = [
             'message_id' => $this->extractMessageId($request),
             'from_email' => $this->extractSenderEmail($request),
             'from_name' => $this->extractSenderName($request),
             'to_email' => $this->extractRecipientEmail($request),
             'to_name' => $this->extractRecipientName($request),
-            'to_emails' => $this->extractToEmails($request),
-            'cc_emails' => $this->extractCcEmails($request),
-            'bcc_emails' => $this->extractBccEmails($request),
+            'to_emails' => $to,
+            'cc_emails' => $cc,
+            'bcc_emails' => $bcc,
             'subject' => $request->get('subject'),
             'body_plain' => $request->get('body-plain'),
             'body_html' => $request->get('body-html'),
             'stripped_text' => $request->get('stripped-text'),
             'stripped_html' => $request->get('stripped-html'),
             'stripped_signature' => $request->get('stripped-signature'),
-            'recipient_count' => $request->get('recipient-count', 1),
+            // recipient_count will be set below
             'timestamp' => $request->get('timestamp') ? \Carbon\Carbon::createFromTimestamp($request->get('timestamp')) : null,
             'token' => $request->get('token'),
             'signature' => $request->get('signature'),
@@ -132,6 +124,17 @@ class InboundEmailService
             'attachments_count' => $request->get('attachment-count', 0),
             'size' => $request->get('message-size', 0),
         ];
+
+        // Set recipient_count to the sum of all recipients
+        $emailData['recipient_count'] = count($to) + count($cc) + count($bcc);
+
+        // Handle signature data properly if it's an array
+        if (is_array($emailData['signature'])) {
+            $signatureData = $emailData['signature'];
+            $emailData['token'] = $signatureData['token'] ?? $emailData['token'];
+            $emailData['signature'] = $signatureData['signature'] ?? null;
+            // Note: timestamp is already handled above
+        }
 
         if (! $emailData['message_id'] || ! $emailData['from_email'] || ! $emailData['to_email']) {
             throw new Exception('Missing required email data: message_id, from_email, or to_email');
@@ -243,7 +246,9 @@ class InboundEmailService
      */
     private function createEmailRecord(array $emailData): InboundEmail
     {
-        return InboundEmail::create($emailData);
+        $email = InboundEmail::create($emailData);
+
+        return $email;
     }
 
     /**
@@ -321,6 +326,12 @@ class InboundEmailService
     // Helper methods for extracting email data
     private function extractMessageId(Request $request): ?string
     {
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['message-id'])) {
+            return $eventData['message']['headers']['message-id'];
+        }
+
         $messageHeaders = $request->get('message-headers');
         if ($messageHeaders) {
             $headers = json_decode($messageHeaders, true);
@@ -336,6 +347,12 @@ class InboundEmailService
 
     private function extractSenderEmail(Request $request): ?string
     {
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['from'])) {
+            return $this->parseEmailAddress($eventData['message']['headers']['from']);
+        }
+
         $from = $request->get('from');
         if ($from) {
             return $this->parseEmailAddress($from);
@@ -356,6 +373,15 @@ class InboundEmailService
 
     private function extractSenderName(Request $request): ?string
     {
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['from'])) {
+            $from = $eventData['message']['headers']['from'];
+            if (preg_match('/^(.+?)\s*<(.+?)>$/', $from, $matches)) {
+                return trim($matches[1], '"\'');
+            }
+        }
+
         $from = $request->get('from');
         if ($from && preg_match('/^(.+?)\s*<(.+?)>$/', $from, $matches)) {
             return trim($matches[1], '"\'');
@@ -366,6 +392,13 @@ class InboundEmailService
 
     private function extractRecipientEmail(Request $request): ?string
     {
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['to'])) {
+            $toEmails = $this->parseEmailAddresses($eventData['message']['headers']['to']);
+            return $toEmails[0] ?? null; // Return first email as primary recipient
+        }
+
         $to = $request->get('To');
         if ($to) {
             return $this->parseEmailAddress($to);
@@ -376,6 +409,18 @@ class InboundEmailService
 
     private function extractRecipientName(Request $request): ?string
     {
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['to'])) {
+            $to = $eventData['message']['headers']['to'];
+            // Extract name from first recipient
+            $parts = preg_split('/[,;]/', $to);
+            $firstPart = trim($parts[0]);
+            if (preg_match('/^(.+?)\s*<(.+?)>$/', $firstPart, $matches)) {
+                return trim($matches[1], '"\'');
+            }
+        }
+
         $to = $request->get('To');
         if ($to && preg_match('/^(.+?)\s*<(.+?)>$/', $to, $matches)) {
             return trim($matches[1], '"\'');
@@ -407,20 +452,21 @@ class InboundEmailService
         return $userModelClass::where('email', $email)->first();
     }
 
-    private function resolveTenantByDomain(string $domain)
+    private function resolveTenantByDomain(?string $domain)
     {
         if ($this->tenantResolver) {
-            return call_user_func($this->tenantResolver, $domain);
+            return call_user_func($this->tenantResolver, $domain ?? 'default');
         }
+
         $tenantModelClass = $this->getTenantModelClass();
 
-        return $tenantModelClass::where('mail_domain', $domain)->first();
+        return $tenantModelClass::where('mail_domain', $domain ?? 'default')->first();
     }
 
     /**
      * Extract multiple "to" email addresses from the request.
      */
-    private function extractToEmails(Request $request): array
+    public function extractToEmails(Request $request): array
     {
         $toEmails = [];
 

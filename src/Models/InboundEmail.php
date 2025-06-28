@@ -153,6 +153,25 @@ class InboundEmail extends Model
      */
     public function getTotalRecipientCount(): int
     {
-        return count($this->getAllRecipients());
+        $count = 0;
+
+        // Count to_emails or fallback to original to_email
+        if ($this->to_emails && !empty($this->to_emails)) {
+            $count += count($this->to_emails);
+        } elseif ($this->to_email) {
+            $count += 1;
+        }
+
+        // Count cc_emails
+        if ($this->cc_emails) {
+            $count += count($this->cc_emails);
+        }
+
+        // Count bcc_emails
+        if ($this->bcc_emails) {
+            $count += count($this->bcc_emails);
+        }
+
+        return $count;
     }
 }
