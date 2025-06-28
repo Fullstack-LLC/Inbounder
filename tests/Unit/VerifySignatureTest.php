@@ -30,7 +30,7 @@ class VerifySignatureTest extends TestCase
         $request = $this->createValidRequest();
 
         // Should not throw an exception
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
         $this->assertTrue(true); // If we get here, no exception was thrown
     }
 
@@ -44,7 +44,7 @@ class VerifySignatureTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Missing signature parameters');
 
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
     }
 
     /** @test */
@@ -57,7 +57,7 @@ class VerifySignatureTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Missing signature parameters');
 
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
     }
 
     /** @test */
@@ -70,7 +70,7 @@ class VerifySignatureTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Missing signature parameters');
 
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
     }
 
     /** @test */
@@ -83,7 +83,7 @@ class VerifySignatureTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Signature timestamp is too old');
 
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
     }
 
     /** @test */
@@ -97,7 +97,7 @@ class VerifySignatureTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Mailgun signing key not configured');
 
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
     }
 
     /** @test */
@@ -110,7 +110,7 @@ class VerifySignatureTest extends TestCase
         $this->expectException(Exception::class);
         $this->expectExceptionMessage('Signature is invalid.');
 
-        $trait->testVerifySignature($request);
+        $trait->test_verify_signature($request);
     }
 
     private function getTraitInstance()
