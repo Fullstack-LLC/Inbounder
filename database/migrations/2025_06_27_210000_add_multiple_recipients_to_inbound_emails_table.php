@@ -16,9 +16,10 @@ return new class extends Migration
             $table->json('to_emails')->nullable()->after('to_name');
             $table->json('cc_emails')->nullable()->after('to_emails');
             $table->json('bcc_emails')->nullable()->after('cc_emails');
+        });
 
-            // Keep the original single fields for backward compatibility
-            // but make them nullable since we'll use the JSON fields for multiple recipients
+        // Make the original fields nullable in a separate operation
+        Schema::table('inbound_emails', function (Blueprint $table) {
             $table->string('to_email')->nullable()->change();
             $table->string('to_name')->nullable()->change();
         });
@@ -31,8 +32,10 @@ return new class extends Migration
     {
         Schema::table('inbound_emails', function (Blueprint $table) {
             $table->dropColumn(['to_emails', 'cc_emails', 'bcc_emails']);
+        });
 
-            // Restore original fields to not nullable
+        // Restore original fields to not nullable
+        Schema::table('inbound_emails', function (Blueprint $table) {
             $table->string('to_email')->nullable(false)->change();
             $table->string('to_name')->nullable(false)->change();
         });

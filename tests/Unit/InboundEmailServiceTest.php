@@ -411,6 +411,64 @@ class InboundEmailServiceTest extends TestCase
         $this->assertEquals(['bcc@example.com'], $email->bcc_emails);
     }
 
+    /** @test */
+    public function it_saves_multiple_recipients_to_database()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'event-data' => [
+                'message' => [
+                    'headers' => [
+                        'to' => 'John Doe <john@example.com>, Jane Smith <jane@example.com>, Bob Wilson <bob@example.com>',
+                        'cc' => 'cc1@example.com, cc2@example.com',
+                        'bcc' => 'bcc@example.com'
+                    ]
+                ]
+            ]
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        // Verify the email was saved to database
+        $this->assertDatabaseHas('inbound_emails', [
+            'id' => $email->id,
+            'message_id' => '<test@example.com>',
+        ]);
+
+        // Refresh from database to ensure we're getting the actual saved data
+        $savedEmail = InboundEmail::find($email->id);
+
+        // Check that all recipients are properly saved
+        $this->assertEquals([
+            'john@example.com',
+            'jane@example.com',
+            'bob@example.com'
+        ], $savedEmail->to_emails);
+
+        $this->assertEquals([
+            'cc1@example.com',
+            'cc2@example.com'
+        ], $savedEmail->cc_emails);
+
+        $this->assertEquals([
+            'bcc@example.com'
+        ], $savedEmail->bcc_emails);
+
+        // Verify helper methods work correctly
+        $this->assertEquals(6, $savedEmail->getTotalRecipientCount());
+        $this->assertTrue($savedEmail->isRecipient('john@example.com'));
+        $this->assertTrue($savedEmail->isRecipient('jane@example.com'));
+        $this->assertTrue($savedEmail->isRecipient('bob@example.com'));
+        $this->assertTrue($savedEmail->isRecipient('cc1@example.com'));
+        $this->assertTrue($savedEmail->isRecipient('cc2@example.com'));
+        $this->assertTrue($savedEmail->isRecipient('bcc@example.com'));
+        $this->assertFalse($savedEmail->isRecipient('not-a-recipient@example.com'));
+
+        // Verify primary recipient
+        $this->assertEquals('john@example.com', $savedEmail->getPrimaryRecipient());
+    }
+
     private function createValidRequest(): Request
     {
         $request = new Request;
