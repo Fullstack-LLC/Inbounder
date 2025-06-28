@@ -17,6 +17,9 @@ class InboundEmail extends Model
         'from_name',
         'to_email',
         'to_name',
+        'to_emails',
+        'cc_emails',
+        'bcc_emails',
         'subject',
         'body_plain',
         'body_html',
@@ -39,6 +42,9 @@ class InboundEmail extends Model
     protected $casts = [
         'message_headers' => 'array',
         'envelope' => 'array',
+        'to_emails' => 'array',
+        'cc_emails' => 'array',
+        'bcc_emails' => 'array',
         'timestamp' => 'datetime',
         'size' => 'integer',
         'attachments_count' => 'integer',
@@ -95,5 +101,58 @@ class InboundEmail extends Model
     public function scopeByMessageId($query, string $messageId)
     {
         return $query->where('message_id', $messageId);
+    }
+
+    /**
+     * Get all recipient emails (to, cc, bcc combined).
+     */
+    public function getAllRecipients(): array
+    {
+        $recipients = [];
+
+        // Add to_emails or fallback to original to_email
+        if ($this->to_emails && !empty($this->to_emails)) {
+            $recipients = array_merge($recipients, $this->to_emails);
+        } elseif ($this->to_email) {
+            $recipients[] = $this->to_email;
+        }
+
+        if ($this->cc_emails) {
+            $recipients = array_merge($recipients, $this->cc_emails);
+        }
+
+        if ($this->bcc_emails) {
+            $recipients = array_merge($recipients, $this->bcc_emails);
+        }
+
+        return array_unique($recipients);
+    }
+
+    /**
+     * Get the primary recipient (first to email or fallback to original to_email).
+     */
+    public function getPrimaryRecipient(): ?string
+    {
+        if ($this->to_emails && !empty($this->to_emails)) {
+            return $this->to_emails[0];
+        }
+
+        return $this->to_email;
+    }
+
+    /**
+     * Check if a specific email is a recipient.
+     */
+    public function isRecipient(string $email): bool
+    {
+        return in_array($email, $this->getAllRecipients());
+    }
+
+    /**
+     * Get recipient count including all types.
+     */
+    public function getTotalRecipientCount(): int
+    {
+        return count($this->getAllRecipients());
     }
 }

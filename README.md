@@ -7,6 +7,7 @@ A Laravel package for handling Mailgun inbound emails with attachments and event
 - ✅ **Mailgun Webhook Integration** - Handle inbound emails from Mailgun with proper webhook compliance
 - ✅ **Signature Verification** - Secure webhook signature validation with timestamp checking
 - ✅ **Attachment Processing** - Save and manage email attachments with size limits and organized storage
+- ✅ **Multiple Recipient Support** - Handle emails with multiple To, CC, and BCC recipients
 - ✅ **Event-Driven Architecture** - Extensible with Laravel events for custom processing
 - ✅ **User Authorization** - Role and permission-based access control with Spatie Laravel Permission
 - ✅ **Duplicate Prevention** - Prevent processing the same email twice using Message-ID
@@ -162,6 +163,57 @@ $largeAttachments = InboundEmailAttachment::where('size', '>', 1024 * 1024)->get
 $pdfAttachments = InboundEmailAttachment::where('content_type', 'application/pdf')->get();
 ```
 
+### 6. Working with Multiple Recipients
+
+The package supports emails with multiple recipients in the To, CC, and BCC fields:
+
+```php
+use Fullstack\Inbounder\Models\InboundEmail;
+
+$email = InboundEmail::find(1);
+
+// Get all recipients (To, CC, BCC combined)
+$allRecipients = $email->getAllRecipients();
+// Returns: ['john@example.com', 'jane@example.com', 'cc@example.com', 'bcc@example.com']
+
+// Get the primary recipient (first To email or fallback to original to_email)
+$primaryRecipient = $email->getPrimaryRecipient();
+// Returns: 'john@example.com'
+
+// Check if a specific email is a recipient
+$isRecipient = $email->isRecipient('jane@example.com');
+// Returns: true
+
+// Get total recipient count
+$totalCount = $email->getTotalRecipientCount();
+// Returns: 4
+
+// Access individual recipient arrays
+$toEmails = $email->to_emails;     // ['john@example.com', 'jane@example.com']
+$ccEmails = $email->cc_emails;     // ['cc@example.com']
+$bccEmails = $email->bcc_emails;   // ['bcc@example.com']
+
+// The original single fields are still available for backward compatibility
+$originalToEmail = $email->to_email;  // 'john@example.com' (first To email)
+$originalToName = $email->to_name;    // 'John Doe'
+```
+
+**Email Address Parsing:**
+
+The package automatically parses email addresses from various formats:
+
+```php
+// These formats are all supported:
+// "John Doe <john@example.com>"
+// "jane@example.com"
+// "John Doe <john@example.com>, Jane Smith <jane@example.com>"
+// "cc1@example.com, cc2@example.com"
+```
+
+**Backward Compatibility:**
+
+The original `to_email` and `to_name` fields are maintained for backward compatibility. When `to_emails` is empty, the system falls back to the original `to_email` field.
+
 ## Configuration Options
 
 ### Mailgun Settings
@@ -292,6 +344,9 @@ InboundEmail::create([
     'from_name' => 'John Doe',
     'to_email' => 'recipient@example.com',
     'to_name' => 'Jane Smith',
+    'to_emails' => ['recipient@example.com', 'secondary@example.com'],
+    'cc_emails' => ['cc1@example.com', 'cc2@example.com'],
+    'bcc_emails' => ['bcc@example.com'],
     'subject' => 'Test Email',
     'body_plain' => 'Plain text content',
     'body_html' => '<p>HTML content</p>',

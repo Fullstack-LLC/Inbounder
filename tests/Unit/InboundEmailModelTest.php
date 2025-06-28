@@ -247,16 +247,142 @@ class InboundEmailModelTest extends TestCase
     /** @test */
     public function it_uses_configurable_model_classes()
     {
-        Config::set('inbounder.models.user', MockUser::class);
-        Config::set('inbounder.models.tenant', MockTenant::class);
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'recipient@example.com',
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
 
-        $email = new InboundEmail;
+        $this->assertEquals(MockUser::class, get_class($email->sender()->getRelated()));
+        $this->assertEquals(MockTenant::class, get_class($email->tenant()->getRelated()));
+    }
 
-        $senderRelationship = $email->sender();
-        $tenantRelationship = $email->tenant();
+    /** @test */
+    public function it_handles_multiple_recipients()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'primary@example.com',
+            'to_name' => 'Primary Recipient',
+            'to_emails' => ['primary@example.com', 'secondary@example.com'],
+            'cc_emails' => ['cc1@example.com', 'cc2@example.com'],
+            'bcc_emails' => ['bcc@example.com'],
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
 
-        // The relationships should be set up with the configurable model classes
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class, $senderRelationship);
-        $this->assertInstanceOf(\Illuminate\Database\Eloquent\Relations\BelongsTo::class, $tenantRelationship);
+        $this->assertIsArray($email->to_emails);
+        $this->assertIsArray($email->cc_emails);
+        $this->assertIsArray($email->bcc_emails);
+        $this->assertEquals(['primary@example.com', 'secondary@example.com'], $email->to_emails);
+        $this->assertEquals(['cc1@example.com', 'cc2@example.com'], $email->cc_emails);
+        $this->assertEquals(['bcc@example.com'], $email->bcc_emails);
+    }
+
+    /** @test */
+    public function it_gets_all_recipients()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'primary@example.com',
+            'to_emails' => ['primary@example.com', 'secondary@example.com'],
+            'cc_emails' => ['cc1@example.com', 'cc2@example.com'],
+            'bcc_emails' => ['bcc@example.com'],
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $allRecipients = $email->getAllRecipients();
+        $expectedRecipients = [
+            'primary@example.com',
+            'secondary@example.com',
+            'cc1@example.com',
+            'cc2@example.com',
+            'bcc@example.com'
+        ];
+
+        $this->assertEquals($expectedRecipients, $allRecipients);
+        $this->assertEquals(5, $email->getTotalRecipientCount());
+    }
+
+    /** @test */
+    public function it_gets_primary_recipient()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'fallback@example.com',
+            'to_emails' => ['primary@example.com', 'secondary@example.com'],
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $this->assertEquals('primary@example.com', $email->getPrimaryRecipient());
+    }
+
+    /** @test */
+    public function it_falls_back_to_original_to_email_for_primary_recipient()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'fallback@example.com',
+            'to_emails' => null,
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $this->assertEquals('fallback@example.com', $email->getPrimaryRecipient());
+    }
+
+    /** @test */
+    public function it_checks_if_email_is_recipient()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'primary@example.com',
+            'to_emails' => ['primary@example.com', 'secondary@example.com'],
+            'cc_emails' => ['cc@example.com'],
+            'bcc_emails' => ['bcc@example.com'],
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $this->assertTrue($email->isRecipient('primary@example.com'));
+        $this->assertTrue($email->isRecipient('secondary@example.com'));
+        $this->assertTrue($email->isRecipient('cc@example.com'));
+        $this->assertTrue($email->isRecipient('bcc@example.com'));
+        $this->assertFalse($email->isRecipient('not-a-recipient@example.com'));
+    }
+
+    /** @test */
+    public function it_handles_empty_recipient_arrays()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'primary@example.com',
+            'to_emails' => [],
+            'cc_emails' => null,
+            'bcc_emails' => [],
+            'subject' => 'Test',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $this->assertEquals(['primary@example.com'], $email->getAllRecipients());
+        $this->assertEquals(1, $email->getTotalRecipientCount());
+        $this->assertEquals('primary@example.com', $email->getPrimaryRecipient());
     }
 }

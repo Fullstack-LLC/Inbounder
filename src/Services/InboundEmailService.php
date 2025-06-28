@@ -113,6 +113,9 @@ class InboundEmailService
             'from_name' => $this->extractSenderName($request),
             'to_email' => $this->extractRecipientEmail($request),
             'to_name' => $this->extractRecipientName($request),
+            'to_emails' => $this->extractToEmails($request),
+            'cc_emails' => $this->extractCcEmails($request),
+            'bcc_emails' => $this->extractBccEmails($request),
             'subject' => $request->get('subject'),
             'body_plain' => $request->get('body-plain'),
             'body_html' => $request->get('body-html'),
@@ -412,5 +415,104 @@ class InboundEmailService
         $tenantModelClass = $this->getTenantModelClass();
 
         return $tenantModelClass::where('mail_domain', $domain)->first();
+    }
+
+    /**
+     * Extract multiple "to" email addresses from the request.
+     */
+    private function extractToEmails(Request $request): array
+    {
+        $toEmails = [];
+
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['to'])) {
+            $toEmails = $this->parseEmailAddresses($eventData['message']['headers']['to']);
+        } else {
+            // Fallback to direct request data
+            $to = $request->get('to');
+            if ($to) {
+                $toEmails = $this->parseEmailAddresses($to);
+            }
+        }
+
+        return $toEmails;
+    }
+
+    /**
+     * Extract multiple "cc" email addresses from the request.
+     */
+    private function extractCcEmails(Request $request): array
+    {
+        $ccEmails = [];
+
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['cc'])) {
+            $ccEmails = $this->parseEmailAddresses($eventData['message']['headers']['cc']);
+        } else {
+            // Fallback to direct request data
+            $cc = $request->get('cc');
+            if ($cc) {
+                $ccEmails = $this->parseEmailAddresses($cc);
+            }
+        }
+
+        return $ccEmails;
+    }
+
+    /**
+     * Extract multiple "bcc" email addresses from the request.
+     */
+    private function extractBccEmails(Request $request): array
+    {
+        $bccEmails = [];
+
+        // Try to get from event-data first (Mailgun webhook format)
+        $eventData = $request->get('event-data');
+        if ($eventData && is_array($eventData) && isset($eventData['message']['headers']['bcc'])) {
+            $bccEmails = $this->parseEmailAddresses($eventData['message']['headers']['bcc']);
+        } else {
+            // Fallback to direct request data
+            $bcc = $request->get('bcc');
+            if ($bcc) {
+                $bccEmails = $this->parseEmailAddresses($bcc);
+            }
+        }
+
+        return $bccEmails;
+    }
+
+    /**
+     * Parse multiple email addresses from a string.
+     */
+    private function parseEmailAddresses(string $emailString): array
+    {
+        $emails = [];
+
+        // Split by common delimiters
+        $parts = preg_split('/[,;]/', $emailString);
+
+        foreach ($parts as $part) {
+            $part = trim($part);
+            if (empty($part)) {
+                continue;
+            }
+
+            // Extract email from "Name <email@domain.com>" format
+            if (preg_match('/<(.+?)>/', $part, $matches)) {
+                $email = trim($matches[1]);
+                if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $emails[] = $email;
+                }
+            } else {
+                // Direct email address
+                if (filter_var($part, FILTER_VALIDATE_EMAIL)) {
+                    $emails[] = $part;
+                }
+            }
+        }
+
+        return array_unique($emails);
     }
 }

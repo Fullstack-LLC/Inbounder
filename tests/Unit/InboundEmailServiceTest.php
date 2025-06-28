@@ -288,6 +288,129 @@ class InboundEmailServiceTest extends TestCase
         $this->assertNull($email->timestamp);
     }
 
+    /** @test */
+    public function it_extracts_multiple_to_emails()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'event-data' => [
+                'message' => [
+                    'headers' => [
+                        'to' => 'John Doe <john@example.com>, Jane Smith <jane@example.com>'
+                    ]
+                ]
+            ]
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        $this->assertEquals(['john@example.com', 'jane@example.com'], $email->to_emails);
+    }
+
+    /** @test */
+    public function it_extracts_multiple_cc_emails()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'event-data' => [
+                'message' => [
+                    'headers' => [
+                        'cc' => 'cc1@example.com, cc2@example.com'
+                    ]
+                ]
+            ]
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        $this->assertEquals(['cc1@example.com', 'cc2@example.com'], $email->cc_emails);
+    }
+
+    /** @test */
+    public function it_extracts_multiple_bcc_emails()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'event-data' => [
+                'message' => [
+                    'headers' => [
+                        'bcc' => 'bcc@example.com'
+                    ]
+                ]
+            ]
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        $this->assertEquals(['bcc@example.com'], $email->bcc_emails);
+    }
+
+    /** @test */
+    public function it_parses_email_addresses_with_names()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'event-data' => [
+                'message' => [
+                    'headers' => [
+                        'to' => 'John Doe <john@example.com>, jane@example.com, "Jane Smith" <jane2@example.com>'
+                    ]
+                ]
+            ]
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        $this->assertEquals(['john@example.com', 'jane@example.com', 'jane2@example.com'], $email->to_emails);
+    }
+
+    /** @test */
+    public function it_handles_empty_recipient_fields()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'event-data' => [
+                'message' => [
+                    'headers' => [
+                        'to' => '',
+                        'cc' => null,
+                        'bcc' => '   '
+                    ]
+                ]
+            ]
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        $this->assertEquals([], $email->to_emails);
+        $this->assertEquals([], $email->cc_emails);
+        $this->assertEquals([], $email->bcc_emails);
+    }
+
+    /** @test */
+    public function it_falls_back_to_direct_request_data_for_recipients()
+    {
+        $request = $this->createValidRequest();
+        $request->merge([
+            'to' => 'direct1@example.com, direct2@example.com',
+            'cc' => 'cc@example.com',
+            'bcc' => 'bcc@example.com',
+            'event-data' => null
+        ]);
+
+        $service = $this->getServiceWithMocks();
+        $email = $service->processInboundEmail($request);
+
+        $this->assertEquals(['direct1@example.com', 'direct2@example.com'], $email->to_emails);
+        $this->assertEquals(['cc@example.com'], $email->cc_emails);
+        $this->assertEquals(['bcc@example.com'], $email->bcc_emails);
+    }
+
     private function createValidRequest(): Request
     {
         $request = new Request;
