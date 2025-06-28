@@ -1,0 +1,30 @@
+name: Update Packagist
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  update-packagist:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Packagist Update
+        run: |
+          curl -X POST https://packagist.org/api/update-package?username=${{ secrets.PACKAGIST_USERNAME }}&apiToken=${{ secrets.PACKAGIST_API_TOKEN }} \
+            -d '{"repository":{"url":"https://github.com/Fullstack-LLC/Inbounder"}}' \
+            -H "Content-Type: application/json"
+        env:
+          PACKAGIST_USERNAME: ${{ secrets.PACKAGIST_USERNAME }}
+          PACKAGIST_API_TOKEN: ${{ secrets.PACKAGIST_API_TOKEN }}
+
+      - name: Wait for Packagist Update
+        run: |
+          echo "Waiting for Packagist to process the update..."
+          sleep 30
+
+      - name: Verify Package Update
+        run: |
+          echo "Package should now be available on Packagist:"
+          echo "https://packagist.org/packages/fullstack/inbounder"
