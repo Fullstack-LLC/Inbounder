@@ -2,7 +2,7 @@
 
 namespace Fullstack\Inbounder\Controllers;
 
-use App\Http\Controllers\Controller;
+use Illuminate\Routing\Controller;
 use Fullstack\Inbounder\Controllers\Helpers\VerifySignature;
 use Fullstack\Inbounder\Services\InboundEmailService;
 use Exception;
@@ -35,20 +35,7 @@ class InboundMailController extends Controller
             ], 200);
 
         } catch (Exception $e) {
-            // Check if it's a signature verification error
-            if (str_contains($e->getMessage(), 'Signature is invalid') ||
-                str_contains($e->getMessage(), 'signature')) {
-
-                logger()->error('Inbound message signature verification failed', [
-                    'from' => $request->get('from'),
-                    'to' => $request->get('To'),
-                    'message_id' => $this->extractMessageId($request),
-                    'error' => $e->getMessage(),
-                ]);
-
-                return response()->json(['error' => $e->getMessage()], 401);
-            }
-
+            // All errors should return 406 for Mailgun compliance
             logger()->error('Inbound message processing failed', [
                 'from' => $request->get('from'),
                 'to' => $request->get('To'),

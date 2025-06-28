@@ -48,11 +48,15 @@ class InboundEmailAttachment extends Model
     {
         $bytes = $this->size;
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
-
-        for ($i = 0; $bytes > 1024 && $i < count($units) - 1; $i++) {
+        $i = 0;
+        while ($bytes >= 1024 && $i < count($units) - 1) {
             $bytes /= 1024;
+            $i++;
         }
-
+        // If the unit is MB or higher, show no decimals for whole numbers
+        if ($i >= 2 && round($bytes) == $bytes) {
+            return (int)$bytes . ' ' . $units[$i];
+        }
         return round($bytes, 2) . ' ' . $units[$i];
     }
 

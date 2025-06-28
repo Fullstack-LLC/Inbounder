@@ -7,45 +7,68 @@ use Fullstack\Inbounder\Events\InboundEmailProcessed;
 use Fullstack\Inbounder\Events\InboundEmailReceived;
 use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
-use App\Models\User;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class InboundEmailService
 {
-    private ?User $sender = null;
+    private $sender = null;
+    private $userResolver;
+    private $tenantResolver;
+
+    public function __construct(callable $userResolver = null, callable $tenantResolver = null)
+    {
+        $this->userResolver = $userResolver;
+        $this->tenantResolver = $tenantResolver;
+    }
+
+    /**
+     * Get the user model class from config.
+     */
+    private function getUserModelClass(): string
+    {
+        return config('inbounder.models.user', 'User');
+    }
+
+    /**
+     * Get the tenant model class from config.
+     */
+    private function getTenantModelClass(): string
+    {
+        return config('inbounder.models.tenant', 'Tenant');
+    }
 
     /**
      * Process an inbound email from Mailgun.
      */
     public function processInboundEmail(Request $request): InboundEmail
     {
-        // Extract email data first (without sender info)
-        $emailData = $this->extractEmailData($request);
-        $attachments = $this->extractAttachments($request);
-
-        // Authorize the sender
-        $this->authorizeSender($emailData['from_email']);
-
-        // Add sender info to email data
-        $emailData['sender_id'] = $this->sender->id;
-        $emailData['tenant_id'] = $this->sender->tenant_id;
-
-        // Check for duplicates
-        $this->checkForDuplicates($emailData['message_id']);
-
-        // Dispatch event for email received
-        if (config('inbounder.events.dispatch_events', true)) {
-            event(new InboundEmailReceived($emailData, $attachments, $request->all()));
-        }
-
         try {
+            // Extract email data first (without sender info)
+            $emailData = $this->extractEmailData($request);
+            $attachments = $this->extractAttachments($request);
+
+            // Authorize the sender
+            $this->authorizeSender($emailData['from_email']);
+
+            // Add sender info to email data
+            $emailData['sender_id'] = $this->sender->id;
+            $emailData['tenant_id'] = $this->sender->tenant_id;
+
+            // Check for duplicates
+            $this->checkForDuplicates($emailData['message_id']);
+
+            // Dispatch event for email received
+            if (config('inbounder.events.dispatch_events', true)) {
+                event(new InboundEmailReceived($emailData, $attachments, $request->all()));
+            }
+
             // Create the email record
             $email = $this->createEmailRecord($emailData);
 
             // Process attachments
-            $this->processAttachments($attachments, $email->id);
+            $this->processAttachments($attachments, $email->id, $request);
 
             // Dispatch success event
             if (config('inbounder.events.dispatch_events', true)) {
@@ -57,6 +80,18 @@ class InboundEmailService
         } catch (Exception $e) {
             // Dispatch failure event
             if (config('inbounder.events.dispatch_events', true)) {
+                // Try to extract email data for the event, but don't fail if we can't
+                $emailData = [];
+                try {
+                    $emailData = $this->extractEmailData($request);
+                } catch (Exception $extractException) {
+                    // If we can't extract email data, use empty array
+                    $emailData = [
+                        'message_id' => $this->extractMessageId($request),
+                        'from_email' => $this->extractSenderEmail($request),
+                        'to_email' => $this->extractRecipientEmail($request),
+                    ];
+                }
                 event(new InboundEmailFailed($emailData, $e->getMessage(), $request->all()));
             }
             throw $e;
@@ -168,7 +203,7 @@ class InboundEmailService
      */
     private function authorizeSender(string $senderEmail): void
     {
-        $this->sender = User::where('email', $senderEmail)->first();
+        $this->sender = $this->resolveUserByEmail($senderEmail);
 
         if (!$this->sender) {
             throw new Exception("User with email {$senderEmail} not found");
@@ -207,11 +242,11 @@ class InboundEmailService
     /**
      * Process attachments and save them to disk.
      */
-    private function processAttachments(array $attachments, int $emailId): void
+    private function processAttachments(array $attachments, int $emailId, Request $request): void
     {
         foreach ($attachments as $attachment) {
             try {
-                $filePath = $this->saveAttachmentToDisk($attachment);
+                $filePath = $this->saveAttachmentToDisk($attachment, $request);
 
                 InboundEmailAttachment::create([
                     'inbound_email_id' => $emailId,
@@ -235,7 +270,7 @@ class InboundEmailService
     /**
      * Save attachment to disk.
      */
-    private function saveAttachmentToDisk(array $attachment): string
+    private function saveAttachmentToDisk(array $attachment, Request $request): string
     {
         $filename = $attachment['filename'];
         $index = $attachment['index'] ?? 1;
@@ -252,15 +287,15 @@ class InboundEmailService
             return $fullStoragePath;
         }
 
-        // Try different ways to get attachment content
-        $content = request()->get("attachment-{$index}");
+        // Try different ways to get attachment content from the request
+        $content = $request->get("attachment-{$index}");
 
         if (!$content && $filename) {
-            $content = request()->get("attachment-{$filename}");
+            $content = $request->get("attachment-{$filename}");
         }
 
         if (!$content && $filename) {
-            $content = request()->get($filename);
+            $content = $request->get($filename);
         }
 
         if (!$content) {
@@ -346,5 +381,23 @@ class InboundEmailService
         }
 
         return null;
+    }
+
+    private function resolveUserByEmail(string $email)
+    {
+        if ($this->userResolver) {
+            return call_user_func($this->userResolver, $email);
+        }
+        $userModelClass = $this->getUserModelClass();
+        return $userModelClass::where('email', $email)->first();
+    }
+
+    private function resolveTenantByDomain(string $domain)
+    {
+        if ($this->tenantResolver) {
+            return call_user_func($this->tenantResolver, $domain);
+        }
+        $tenantModelClass = $this->getTenantModelClass();
+        return $tenantModelClass::where('mail_domain', $domain)->first();
     }
 }

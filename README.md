@@ -1,16 +1,18 @@
 # Inbounder - Laravel Mailgun Inbound Email Handler
 
-A Laravel package for handling Mailgun inbound emails with attachments and event-driven processing.
+A Laravel package for handling Mailgun inbound emails with attachments and event-driven processing. Perfect for building support ticketing systems, document processing workflows, and email archiving solutions.
 
 ## Features
 
-- ✅ **Mailgun Webhook Integration** - Handle inbound emails from Mailgun
-- ✅ **Signature Verification** - Secure webhook signature validation
-- ✅ **Attachment Processing** - Save and manage email attachments
-- ✅ **Event-Driven Architecture** - Extensible with Laravel events
-- ✅ **User Authorization** - Role and permission-based access control
-- ✅ **Duplicate Prevention** - Prevent processing the same email twice
-- ✅ **Configurable** - Customizable settings for your needs
+- ✅ **Mailgun Webhook Integration** - Handle inbound emails from Mailgun with proper webhook compliance
+- ✅ **Signature Verification** - Secure webhook signature validation with timestamp checking
+- ✅ **Attachment Processing** - Save and manage email attachments with size limits and organized storage
+- ✅ **Event-Driven Architecture** - Extensible with Laravel events for custom processing
+- ✅ **User Authorization** - Role and permission-based access control with Spatie Laravel Permission
+- ✅ **Duplicate Prevention** - Prevent processing the same email twice using Message-ID
+- ✅ **Configurable Models** - Use your own User and Tenant models
+- ✅ **Multi-tenant Support** - Built-in tenant isolation and domain-based routing
+- ✅ **Comprehensive Testing** - Full test coverage with Pest and Testbench
 - ✅ **Laravel 10/11 Compatible** - Works with latest Laravel versions
 
 ## Installation
@@ -88,7 +90,19 @@ In your Mailgun dashboard, create a route that forwards emails to:
 https://your-domain.com/api/mail/mailgun
 ```
 
-### 2. User Authorization
+### 2. Configure Custom Models (Optional)
+
+If you want to use your own User and Tenant models, update the config:
+
+```php
+// config/inbounder.php
+'models' => [
+    'user' => \App\Models\User::class,
+    'tenant' => \App\Models\Tenant::class,
+],
+```
+
+### 3. User Authorization
 
 Users must have the required permission and role to send emails. The package integrates with Spatie Laravel Permission:
 
@@ -100,7 +114,7 @@ $user->givePermissionTo('can-send-emails', 'tenant-admin');
 $user->assignRole('super-admin');
 ```
 
-### 3. Listen to Events
+### 4. Listen to Events
 
 The package dispatches events you can listen to:
 
@@ -119,7 +133,7 @@ protected $listen = [
 ];
 ```
 
-### 4. Access Email Data
+### 5. Access Email Data
 
 ```php
 use Fullstack\Inbounder\Models\InboundEmail;
@@ -131,14 +145,21 @@ $emails = InboundEmail::with('attachments')->get();
 // Get emails from a specific sender
 $emails = InboundEmail::where('from_email', 'user@example.com')->get();
 
+// Get emails for a specific tenant
+$emails = InboundEmail::where('tenant_id', 1)->get();
+
 // Get attachments for an email
 $email = InboundEmail::find(1);
 $attachments = $email->attachments;
 
-// Get attachment URL
+// Get attachment URL and formatted size
 $attachment = InboundEmailAttachment::find(1);
 $url = $attachment->url; // Full URL to the file
 $size = $attachment->formatted_size; // "2.5 MB"
+
+// Filter attachments by size or content type
+$largeAttachments = InboundEmailAttachment::where('size', '>', 1024 * 1024)->get();
+$pdfAttachments = InboundEmailAttachment::where('content_type', 'application/pdf')->get();
 ```
 
 ## Configuration Options
@@ -150,6 +171,15 @@ $size = $attachment->formatted_size; // "2.5 MB"
     'signing_key' => env('MAILGUN_SIGNING_KEY'),
     'webhook_signing_key' => env('MAILGUN_WEBHOOK_SIGNING_KEY'),
     'domain' => env('MAILGUN_DOMAIN'),
+],
+```
+
+### Model Settings
+
+```php
+'models' => [
+    'user' => env('INBOUNDER_USER_MODEL', \App\Models\User::class),
+    'tenant' => env('INBOUNDER_TENANT_MODEL', \App\Models\Tenant::class),
 ],
 ```
 
@@ -188,12 +218,12 @@ $size = $attachment->formatted_size; // "2.5 MB"
 
 ### POST /api/mail/mailgun
 
-Handles incoming Mailgun webhooks.
+Handles incoming Mailgun webhooks with full Mailgun compliance.
 
-**Response Codes:**
-- `200` - Email processed successfully
-- `401` - Invalid signature
-- `406` - Processing failed (validation, authorization, etc.)
+**Response Codes (Mailgun Compliant):**
+- `200` - Email processed successfully (Mailgun will not retry)
+- `406` - Processing failed or rejected (Mailgun will not retry)
+- Any other code - Mailgun will retry the webhook
 
 **Response Format:**
 ```json
@@ -203,44 +233,98 @@ Handles incoming Mailgun webhooks.
 }
 ```
 
+**Error Response:**
+```json
+{
+    "error": "Signature is invalid."
+}
+```
+
 ## Events
 
 ### InboundEmailReceived
 
-Fired when an email is received and validated.
+Fired when an email is received and validated, before processing.
 
 ```php
 class InboundEmailReceived
 {
-    public array $emailData;
-    public array $attachments;
-    public array $requestData;
+    public array $emailData;      // Email metadata
+    public array $attachments;    // Attachment information
+    public array $requestData;    // Raw request data
 }
 ```
 
 ### InboundEmailProcessed
 
-Fired when an email is successfully processed and saved.
+Fired when an email is successfully processed and saved to the database.
 
 ```php
 class InboundEmailProcessed
 {
-    public InboundEmail $email;
-    public array $attachments;
+    public InboundEmail $email;   // The saved email model
+    public array $attachments;    // Processed attachment information
 }
 ```
 
 ### InboundEmailFailed
 
-Fired when email processing fails.
+Fired when email processing fails for any reason.
 
 ```php
 class InboundEmailFailed
 {
-    public array $emailData;
-    public string $error;
-    public array $requestData;
+    public array $emailData;      // Available email data
+    public string $error;         // Error message
+    public array $requestData;    // Raw request data
 }
+```
+
+## Database Schema
+
+### InboundEmail Model
+
+```php
+// Main email record
+InboundEmail::create([
+    'message_id' => '<unique@example.com>',
+    'from_email' => 'sender@example.com',
+    'from_name' => 'John Doe',
+    'to_email' => 'recipient@example.com',
+    'to_name' => 'Jane Smith',
+    'subject' => 'Test Email',
+    'body_plain' => 'Plain text content',
+    'body_html' => '<p>HTML content</p>',
+    'stripped_text' => 'Stripped text content',
+    'stripped_html' => '<p>Stripped HTML</p>',
+    'stripped_signature' => 'Email signature',
+    'recipient_count' => 1,
+    'timestamp' => Carbon::now(),
+    'token' => 'webhook-token',
+    'signature' => 'webhook-signature',
+    'domain' => 'example.com',
+    'message_headers' => [['From', 'sender@example.com']],
+    'envelope' => ['from' => 'sender@example.com', 'to' => 'recipient@example.com'],
+    'attachments_count' => 2,
+    'size' => 1024000,
+    'sender_id' => 1,
+    'tenant_id' => 1,
+]);
+```
+
+### InboundEmailAttachment Model
+
+```php
+// Attachment record
+InboundEmailAttachment::create([
+    'inbound_email_id' => 1,
+    'filename' => 'document.pdf',
+    'content_type' => 'application/pdf',
+    'size' => 1024000,
+    'file_path' => 'inbound-emails/attachments/2024/01/15/abc123_document.pdf',
+    'original_name' => 'document.pdf',
+    'disposition' => 'attachment',
+]);
 ```
 
 ## Testing
@@ -249,17 +333,33 @@ class InboundEmailFailed
 # Run package tests
 composer test
 
-# Run tests in your Laravel app
-php artisan test --filter=InboundMailControllerTest
+# Run tests with coverage
+./vendor/bin/pest --coverage
+
+# Run specific test file
+./vendor/bin/pest tests/Feature/InboundMailControllerTest.php
 ```
 
 ## Security
 
 - **Signature Verification** - All webhooks are verified using Mailgun's signing key
-- **Timestamp Validation** - Prevents replay attacks
+- **Timestamp Validation** - Prevents replay attacks (5-minute window)
 - **User Authorization** - Only authorized users can send emails
-- **File Size Limits** - Configurable attachment size limits
-- **Duplicate Prevention** - Prevents processing the same email twice
+- **File Size Limits** - Configurable attachment size limits (20MB default)
+- **Duplicate Prevention** - Prevents processing the same email twice using Message-ID
+- **Tenant Isolation** - Multi-tenant support with proper data separation
+- **Input Validation** - Comprehensive validation of all incoming data
+
+## Use Cases
+
+This package is perfect for:
+
+- **Support Ticketing Systems** - Convert emails to tickets with attachments
+- **Document Processing Workflows** - Process email attachments automatically
+- **Email Archiving** - Store all inbound emails with attachments
+- **Multi-tenant SaaS** - Handle emails for multiple tenants
+- **Customer Service** - Route emails to appropriate agents
+- **Compliance & Auditing** - Maintain email records for compliance
 
 ## Contributing
 
@@ -267,7 +367,8 @@ php artisan test --filter=InboundMailControllerTest
 2. Create a feature branch
 3. Make your changes
 4. Add tests
-5. Submit a pull request
+5. Ensure all tests pass
+6. Submit a pull request
 
 ## License
 

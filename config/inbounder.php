@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Model Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for custom model classes used by the package.
+    |
+    */
+    'models' => [
+        'user' => env('INBOUNDER_USER_MODEL', \App\Models\User::class),
+        'tenant' => env('INBOUNDER_TENANT_MODEL', \App\Models\Tenant::class),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Attachment Settings
     |--------------------------------------------------------------------------
     |

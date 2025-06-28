@@ -50,7 +50,8 @@ class InboundEmail extends Model
      */
     public function sender(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\User::class, 'sender_id');
+        $userModelClass = config('inbounder.models.user', \App\Models\User::class);
+        return $this->belongsTo($userModelClass, 'sender_id');
     }
 
     /**
@@ -58,7 +59,8 @@ class InboundEmail extends Model
      */
     public function tenant(): BelongsTo
     {
-        return $this->belongsTo(\App\Models\Tenant::class, 'tenant_id');
+        $tenantModelClass = config('inbounder.models.tenant', \App\Models\Tenant::class);
+        return $this->belongsTo($tenantModelClass, 'tenant_id');
     }
 
     /**

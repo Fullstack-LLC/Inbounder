@@ -2,13 +2,20 @@
 
 namespace Fullstack\Inbounder\Controllers\Helpers;
 
-use App\Models\Tenant;
 use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 trait VerifySignature
 {
+    /**
+     * Get the tenant model class from config.
+     */
+    private function getTenantModelClass(): string
+    {
+        return config('inbounder.models.tenant', \App\Models\Tenant::class);
+    }
+
     /**
      * Verify the Mailgun webhook signature.
      *
@@ -52,8 +59,9 @@ trait VerifySignature
     private function getSigningKey(Request $request): string
     {
         $fromDomain = 'mg.' . $this->extractDomain($request->get('from'));
+        $tenantModelClass = $this->getTenantModelClass();
 
-        $signingKey = Tenant::where('mail_domain', $fromDomain)->first()->webhook_signing_string ?? null;
+        $signingKey = $tenantModelClass::where('mail_domain', $fromDomain)->first()->webhook_signing_string ?? null;
         if (! $signingKey) {
             throw new Exception('No signing key found for domain ' . $fromDomain . '.');
         }

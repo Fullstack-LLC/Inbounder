@@ -2,7 +2,6 @@
 
 namespace Fullstack\Inbounder\Events;
 
-use App\Models\InboundEmail;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
