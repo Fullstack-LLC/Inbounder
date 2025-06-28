@@ -19,7 +19,6 @@ trait VerifySignature
     /**
      * Verify the Mailgun webhook signature.
      *
-     * @param Request $request
      * @throws Exception if signature is invalid
      */
     protected function verifySignature(Request $request): void
@@ -28,7 +27,7 @@ trait VerifySignature
         $timestamp = $request->get('timestamp');
         $token = $request->get('signature.token');
 
-        if (!$signature || !$timestamp || !$token) {
+        if (! $signature || ! $timestamp || ! $token) {
             throw new Exception('Missing signature parameters');
         }
 
@@ -40,30 +39,30 @@ trait VerifySignature
 
         // Verify signature
         $signingKey = config('inbounder.mailgun.signing_key');
-        if (!$signingKey) {
+        if (! $signingKey) {
             throw new Exception('Mailgun signing key not configured');
         }
 
-        $expectedSignature = hash_hmac('sha256', $timestamp . $token, $signingKey);
+        $expectedSignature = hash_hmac('sha256', $timestamp.$token, $signingKey);
 
-        if (!hash_equals($expectedSignature, $signature)) {
+        if (! hash_equals($expectedSignature, $signature)) {
             throw new Exception('Signature is invalid.');
         }
 
         logger()->info('Signature verified', [
             'timestamp' => $timestamp,
-            'timestamp_diff' => $timeDiff . ' seconds'
+            'timestamp_diff' => $timeDiff.' seconds',
         ]);
     }
 
     private function getSigningKey(Request $request): string
     {
-        $fromDomain = 'mg.' . $this->extractDomain($request->get('from'));
+        $fromDomain = 'mg.'.$this->extractDomain($request->get('from'));
         $tenantModelClass = $this->getTenantModelClass();
 
         $signingKey = $tenantModelClass::where('mail_domain', $fromDomain)->first()->webhook_signing_string ?? null;
         if (! $signingKey) {
-            throw new Exception('No signing key found for domain ' . $fromDomain . '.');
+            throw new Exception('No signing key found for domain '.$fromDomain.'.');
         }
 
         return $signingKey;

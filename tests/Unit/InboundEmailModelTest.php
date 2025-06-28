@@ -4,8 +4,8 @@ namespace Fullstack\Inbounder\Tests\Unit;
 
 use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
-use Fullstack\Inbounder\Tests\Helpers\MockUser;
 use Fullstack\Inbounder\Tests\Helpers\MockTenant;
+use Fullstack\Inbounder\Tests\Helpers\MockUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Orchestra\Testbench\TestCase;
@@ -25,9 +25,9 @@ class InboundEmailModelTest extends TestCase
     {
         $app['config']->set('database.default', 'testbench');
         $app['config']->set('database.connections.testbench', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => ':memory:',
-            'prefix'   => '',
+            'prefix' => '',
         ]);
 
         $app['config']->set('inbounder.models.user', MockUser::class);
@@ -250,7 +250,7 @@ class InboundEmailModelTest extends TestCase
         Config::set('inbounder.models.user', MockUser::class);
         Config::set('inbounder.models.tenant', MockTenant::class);
 
-        $email = new InboundEmail();
+        $email = new InboundEmail;
 
         $senderRelationship = $email->sender();
         $tenantRelationship = $email->tenant();

@@ -2,12 +2,12 @@
 
 namespace Fullstack\Inbounder\Controllers;
 
-use Illuminate\Routing\Controller;
+use Exception;
 use Fullstack\Inbounder\Controllers\Helpers\VerifySignature;
 use Fullstack\Inbounder\Services\InboundEmailService;
-use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Routing\Controller;
 
 class InboundMailController extends Controller
 {
@@ -31,7 +31,7 @@ class InboundMailController extends Controller
 
             return response()->json([
                 'message' => 'Email has been successfully processed',
-                'email_id' => $email->id
+                'email_id' => $email->id,
             ], 200);
 
         } catch (Exception $e) {
@@ -61,6 +61,7 @@ class InboundMailController extends Controller
                 }
             }
         }
+
         return null;
     }
 }

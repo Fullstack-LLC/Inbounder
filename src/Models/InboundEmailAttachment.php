@@ -55,9 +55,10 @@ class InboundEmailAttachment extends Model
         }
         // If the unit is MB or higher, show no decimals for whole numbers
         if ($i >= 2 && round($bytes) == $bytes) {
-            return (int)$bytes . ' ' . $units[$i];
+            return (int) $bytes.' '.$units[$i];
         }
-        return round($bytes, 2) . ' ' . $units[$i];
+
+        return round($bytes, 2).' '.$units[$i];
     }
 
     /**

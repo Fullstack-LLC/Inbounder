@@ -7,7 +7,9 @@ use Illuminate\Database\Eloquent\Model;
 class MockUser extends Model
 {
     protected $table = 'users';
+
     protected $fillable = ['id', 'email', 'tenant_id'];
+
     protected $guarded = [];
 
     public function hasPermissionTo($permission, $role = null)
@@ -22,13 +24,14 @@ class MockUser extends Model
 
     public static function where($column, $value)
     {
-        return new class {
+        return new class
+        {
             public function first()
             {
                 return new MockUser([
                     'id' => 1,
                     'email' => 'sender@example.com',
-                    'tenant_id' => 1
+                    'tenant_id' => 1,
                 ]);
             }
         };
@@ -38,12 +41,13 @@ class MockUser extends Model
     {
         $user = new MockUser($attributes);
         // Ensure id is set if not provided
-        if (!isset($user->id)) {
+        if (! isset($user->id)) {
             $user->id = 1;
         }
-        if (!isset($user->tenant_id)) {
+        if (! isset($user->tenant_id)) {
             $user->tenant_id = 1;
         }
+
         return $user;
     }
 }
@@ -51,18 +55,21 @@ class MockUser extends Model
 class MockTenant extends Model
 {
     protected $table = 'tenants';
+
     protected $fillable = ['id', 'mail_domain', 'webhook_signing_string'];
+
     protected $guarded = [];
 
     public static function where($column, $value)
     {
-        return new class {
+        return new class
+        {
             public function first()
             {
                 return new MockTenant([
                     'id' => 1,
                     'mail_domain' => 'mg.example.com',
-                    'webhook_signing_string' => 'test-signing-key'
+                    'webhook_signing_string' => 'test-signing-key',
                 ]);
             }
         };
@@ -72,9 +79,10 @@ class MockTenant extends Model
     {
         $tenant = new MockTenant($attributes);
         // Ensure id is set if not provided
-        if (!isset($tenant->id)) {
+        if (! isset($tenant->id)) {
             $tenant->id = 1;
         }
+
         return $tenant;
     }
 }

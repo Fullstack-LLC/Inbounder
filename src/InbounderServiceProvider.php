@@ -2,9 +2,9 @@
 
 namespace Fullstack\Inbounder;
 
-use Illuminate\Support\ServiceProvider;
 use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\ServiceProvider;
 
 class InbounderServiceProvider extends ServiceProvider
 {
@@ -14,7 +14,8 @@ class InbounderServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(
-            __DIR__.'/../config/inbounder.php', 'inbounder'
+            __DIR__.'/../config/inbounder.php',
+            'inbounder'
         );
     }
 

@@ -2,22 +2,24 @@
 
 namespace Fullstack\Inbounder\Services;
 
+use Exception;
 use Fullstack\Inbounder\Events\InboundEmailFailed;
 use Fullstack\Inbounder\Events\InboundEmailProcessed;
 use Fullstack\Inbounder\Events\InboundEmailReceived;
 use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
-use Exception;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 
 class InboundEmailService
 {
     private $sender = null;
+
     private $userResolver;
+
     private $tenantResolver;
 
-    public function __construct(callable $userResolver = null, callable $tenantResolver = null)
+    public function __construct(?callable $userResolver = null, ?callable $tenantResolver = null)
     {
         $this->userResolver = $userResolver;
         $this->tenantResolver = $tenantResolver;
@@ -82,6 +84,7 @@ class InboundEmailService
             if (config('inbounder.events.dispatch_events', true)) {
                 // Try to extract email data for the event, but don't fail if we can't
                 $emailData = [];
+
                 try {
                     $emailData = $this->extractEmailData($request);
                 } catch (Exception $extractException) {
@@ -94,6 +97,7 @@ class InboundEmailService
                 }
                 event(new InboundEmailFailed($emailData, $e->getMessage(), $request->all()));
             }
+
             throw $e;
         }
     }
@@ -126,7 +130,7 @@ class InboundEmailService
             'size' => $request->get('message-size', 0),
         ];
 
-        if (!$emailData['message_id'] || !$emailData['from_email'] || !$emailData['to_email']) {
+        if (! $emailData['message_id'] || ! $emailData['from_email'] || ! $emailData['to_email']) {
             throw new Exception('Missing required email data: message_id, from_email, or to_email');
         }
 
@@ -205,7 +209,7 @@ class InboundEmailService
     {
         $this->sender = $this->resolveUserByEmail($senderEmail);
 
-        if (!$this->sender) {
+        if (! $this->sender) {
             throw new Exception("User with email {$senderEmail} not found");
         }
 
@@ -213,8 +217,8 @@ class InboundEmailService
         $requiredRole = config('inbounder.authorization.required_role', 'tenant-admin');
         $superAdminRoles = config('inbounder.authorization.super_admin_roles', ['super-admin']);
 
-        if (!$this->sender->hasPermissionTo($requiredPermission, $requiredRole) &&
-            !$this->sender->hasRole($superAdminRoles)) {
+        if (! $this->sender->hasPermissionTo($requiredPermission, $requiredRole) &&
+            ! $this->sender->hasRole($superAdminRoles)) {
             throw new Exception("User {$senderEmail} is not authorized to send emails");
         }
     }
@@ -261,7 +265,7 @@ class InboundEmailService
                 logger()->error('Failed to save attachment', [
                     'email_id' => $emailId,
                     'filename' => $attachment['filename'],
-                    'error' => $e->getMessage()
+                    'error' => $e->getMessage(),
                 ]);
             }
         }
@@ -281,31 +285,33 @@ class InboundEmailService
         if (isset($attachment['_uploaded_file']) && $attachment['_uploaded_file'] instanceof \Illuminate\Http\UploadedFile) {
             $file = $attachment['_uploaded_file'];
             $datePath = now()->format('Y/m/d');
-            $uniqueName = uniqid() . '_' . $file->getClientOriginalName();
+            $uniqueName = uniqid().'_'.$file->getClientOriginalName();
             $fullStoragePath = "{$storagePath}/{$datePath}/{$uniqueName}";
             Storage::disk($storageDisk)->putFileAs("{$storagePath}/{$datePath}", $file, $uniqueName);
+
             return $fullStoragePath;
         }
 
         // Try different ways to get attachment content from the request
         $content = $request->get("attachment-{$index}");
 
-        if (!$content && $filename) {
+        if (! $content && $filename) {
             $content = $request->get("attachment-{$filename}");
         }
 
-        if (!$content && $filename) {
+        if (! $content && $filename) {
             $content = $request->get($filename);
         }
 
-        if (!$content) {
+        if (! $content) {
             throw new \Exception("Attachment content not found for index {$index}, filename: {$filename}");
         }
 
         $datePath = now()->format('Y/m/d');
-        $uniqueName = uniqid() . '_' . ($filename ?: 'attachment');
+        $uniqueName = uniqid().'_'.($filename ?: 'attachment');
         $fullStoragePath = "{$storagePath}/{$datePath}/{$uniqueName}";
         Storage::disk($storageDisk)->put($fullStoragePath, $content);
+
         return $fullStoragePath;
     }
 
@@ -321,6 +327,7 @@ class InboundEmailService
                 }
             }
         }
+
         return null;
     }
 
@@ -340,6 +347,7 @@ class InboundEmailService
                 }
             }
         }
+
         return null;
     }
 
@@ -349,6 +357,7 @@ class InboundEmailService
         if ($from && preg_match('/^(.+?)\s*<(.+?)>$/', $from, $matches)) {
             return trim($matches[1], '"\'');
         }
+
         return null;
     }
 
@@ -358,6 +367,7 @@ class InboundEmailService
         if ($to) {
             return $this->parseEmailAddress($to);
         }
+
         return null;
     }
 
@@ -367,6 +377,7 @@ class InboundEmailService
         if ($to && preg_match('/^(.+?)\s*<(.+?)>$/', $to, $matches)) {
             return trim($matches[1], '"\'');
         }
+
         return null;
     }
 
@@ -389,6 +400,7 @@ class InboundEmailService
             return call_user_func($this->userResolver, $email);
         }
         $userModelClass = $this->getUserModelClass();
+
         return $userModelClass::where('email', $email)->first();
     }
 
@@ -398,6 +410,7 @@ class InboundEmailService
             return call_user_func($this->tenantResolver, $domain);
         }
         $tenantModelClass = $this->getTenantModelClass();
+
         return $tenantModelClass::where('mail_domain', $domain)->first();
     }
 }

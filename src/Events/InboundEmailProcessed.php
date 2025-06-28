@@ -13,9 +13,12 @@ use Illuminate\Queue\SerializesModels;
 
 class InboundEmailProcessed
 {
-    use Dispatchable, InteractsWithSockets, SerializesModels;
+    use Dispatchable;
+    use InteractsWithSockets;
+    use SerializesModels;
 
     public InboundEmail $email;
+
     public array $attachments;
 
     /**

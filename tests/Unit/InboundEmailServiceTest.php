@@ -9,8 +9,8 @@ use Fullstack\Inbounder\Events\InboundEmailReceived;
 use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
 use Fullstack\Inbounder\Services\InboundEmailService;
-use Fullstack\Inbounder\Tests\Helpers\MockUser;
 use Fullstack\Inbounder\Tests\Helpers\MockTenant;
+use Fullstack\Inbounder\Tests\Helpers\MockUser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -34,9 +34,9 @@ class InboundEmailServiceTest extends TestCase
     {
         $app['config']->set('database.default', 'testbench');
         $app['config']->set('database.connections.testbench', [
-            'driver'   => 'sqlite',
+            'driver' => 'sqlite',
             'database' => ':memory:',
-            'prefix'   => '',
+            'prefix' => '',
         ]);
 
         $app['config']->set('inbounder.models.user', MockUser::class);
@@ -290,7 +290,7 @@ class InboundEmailServiceTest extends TestCase
 
     private function createValidRequest(): Request
     {
-        $request = new Request();
+        $request = new Request;
         $request->offsetSet('message-headers', json_encode([
             ['Message-ID', '<test@example.com>'],
             ['From', 'sender@example.com'],
@@ -322,24 +322,28 @@ class InboundEmailServiceTest extends TestCase
                 $user = new \Fullstack\Inbounder\Tests\Helpers\MockUser([
                     'id' => 1,
                     'email' => 'sender@example.com',
-                    'tenant_id' => 1
+                    'tenant_id' => 1,
                 ]);
                 // Ensure the properties are accessible
                 $user->setAttribute('id', 1);
                 $user->setAttribute('tenant_id', 1);
+
                 return $user;
             }
+
             return null;
         };
         $tenantResolver = function ($domain) {
             $tenant = new \Fullstack\Inbounder\Tests\Helpers\MockTenant([
                 'id' => 1,
                 'mail_domain' => 'mg.example.com',
-                'webhook_signing_string' => 'test-signing-key'
+                'webhook_signing_string' => 'test-signing-key',
             ]);
             $tenant->setAttribute('id', 1);
+
             return $tenant;
         };
+
         return new \Fullstack\Inbounder\Services\InboundEmailService($userResolver, $tenantResolver);
     }
 }

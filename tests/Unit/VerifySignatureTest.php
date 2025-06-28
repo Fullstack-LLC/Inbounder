@@ -115,10 +115,11 @@ class VerifySignatureTest extends TestCase
 
     private function getTraitInstance()
     {
-        return new class {
+        return new class
+        {
             use \Fullstack\Inbounder\Controllers\Helpers\VerifySignature;
 
-            public function testVerifySignature($request)
+            public function test_verify_signature($request)
             {
                 return $this->verifySignature($request);
             }
@@ -135,9 +136,9 @@ class VerifySignatureTest extends TestCase
         $timestamp = time();
         $token = 'test-token';
         $signingKey = 'test-signing-key';
-        $signature = hash_hmac('sha256', $timestamp . $token, $signingKey);
+        $signature = hash_hmac('sha256', $timestamp.$token, $signingKey);
 
-        $request = new Request();
+        $request = new Request;
         $request->offsetSet('signature', $signature);
         $request->offsetSet('timestamp', $timestamp);
         $request->offsetSet('signature.token', $token);
