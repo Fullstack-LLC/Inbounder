@@ -23,9 +23,17 @@ trait VerifySignature
      */
     protected function verifySignature(Request $request): void
     {
-        $signature = $request->get('signature');
-        $timestamp = $request->get('timestamp');
-        $token = $request->get('token');
+        $signatureData = $request->get('signature');
+
+        if (is_array($signatureData)) {
+            $timestamp = $signatureData['timestamp'] ?? null;
+            $token = $signatureData['token'] ?? null;
+            $signature = $signatureData['signature'] ?? null;
+        } else {
+            $timestamp = $request->get('timestamp');
+            $token = $request->get('token');
+            $signature = $request->get('signature');
+        }
 
         if (! $signature || ! $timestamp || ! $token) {
             throw new Exception('Missing signature parameters');

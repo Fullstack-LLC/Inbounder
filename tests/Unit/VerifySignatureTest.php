@@ -137,4 +137,101 @@ class VerifySignatureTest extends TestCase
 
         $this->verifySignature($request);
     }
+
+    /** @test */
+    public function it_verifies_valid_signature_with_array_format()
+    {
+        $timestamp = time();
+        $token = 'test-token';
+        $signingKey = 'test-signing-key';
+        $signature = hash_hmac('sha256', $timestamp.$token, $signingKey);
+
+        Config::set('inbounder.mailgun.webhook_signing_key', $signingKey);
+
+        $request = new Request([
+            'signature' => [
+                'timestamp' => $timestamp,
+                'token' => $token,
+                'signature' => $signature,
+            ],
+            'from' => 'test@example.com',
+        ]);
+
+        $this->verifySignature($request);
+        // If we get here, no exception was thrown
+        $this->assertTrue(true);
+    }
+
+    /** @test */
+    public function it_verifies_valid_signature_with_direct_format()
+    {
+        $timestamp = time();
+        $token = 'test-token';
+        $signingKey = 'test-signing-key';
+        $signature = hash_hmac('sha256', $timestamp.$token, $signingKey);
+
+        Config::set('inbounder.mailgun.webhook_signing_key', $signingKey);
+
+        $request = new Request([
+            'timestamp' => $timestamp,
+            'token' => $token,
+            'signature' => $signature,
+            'from' => 'test@example.com',
+        ]);
+
+        $this->verifySignature($request);
+        // If we get here, no exception was thrown
+        $this->assertTrue(true);
+    }
+
+    /** @test */
+    public function it_throws_exception_for_missing_signature_array()
+    {
+        $request = new Request([
+            'signature' => [
+                'timestamp' => time(),
+                'token' => 'test-token',
+                // Missing signature
+            ],
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Missing signature parameters');
+
+        $this->verifySignature($request);
+    }
+
+    /** @test */
+    public function it_throws_exception_for_missing_timestamp_array()
+    {
+        $request = new Request([
+            'signature' => [
+                'token' => 'test-token',
+                'signature' => 'valid-signature',
+                // Missing timestamp
+            ],
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Missing signature parameters');
+
+        $this->verifySignature($request);
+    }
+
+    /** @test */
+    public function it_throws_exception_for_missing_token_array()
+    {
+        $request = new Request([
+            'signature' => [
+                'timestamp' => time(),
+                'signature' => 'valid-signature',
+                // Missing token
+            ],
+        ]);
+
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Missing signature parameters');
+
+        $this->verifySignature($request);
+    }
 }
