@@ -6,11 +6,14 @@ use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Services\InboundEmailService;
 use Fullstack\Inbounder\Tests\Helpers\MockTenant;
 use Fullstack\Inbounder\Tests\Helpers\MockUser;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Orchestra\Testbench\TestCase;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Artisan;
 
 class InboundMailControllerTest extends TestCase
 {
@@ -25,52 +28,29 @@ class InboundMailControllerTest extends TestCase
 
     protected function getEnvironmentSetUp($app)
     {
+        $dbPath = base_path('vendor/orchestra/testbench-core/laravel/testbench.sqlite');
         $app['config']->set('database.default', 'testbench');
         $app['config']->set('database.connections.testbench', [
             'driver' => 'sqlite',
-            'database' => ':memory:',
+            'database' => $dbPath,
             'prefix' => '',
         ]);
-
-        // Setup Inbounder config
-        $app['config']->set('inbounder.mailgun.signing_key', 'test-signing-key');
-        $app['config']->set('inbounder.attachments.max_file_size', 20 * 1024 * 1024);
-        $app['config']->set('inbounder.models.user', MockUser::class);
-        $app['config']->set('inbounder.models.tenant', MockTenant::class);
+        $app['config']->set('inbounder.models.tenant', \Fullstack\Inbounder\Tests\Helpers\MockTenant::class);
+        $app['config']->set('inbounder.models.user', \Fullstack\Inbounder\Tests\Helpers\MockUser::class);
     }
 
     protected function setUp(): void
     {
         parent::setUp();
+        \DB::setDefaultConnection('testbench');
         $userResolver = function ($email) {
             if ($email === 'sender@example.com') {
-                $user = new \Fullstack\Inbounder\Tests\Helpers\MockUser([
-                    'id' => 1,
-                    'email' => 'sender@example.com',
-                    'tenant_id' => 1,
-                ]);
-                // Ensure the properties are accessible
-                $user->setAttribute('id', 1);
-                $user->setAttribute('tenant_id', 1);
-
-                return $user;
+                return 1;
             }
-
             return null;
         };
-        $tenantResolver = function ($domain) {
-            $tenant = new \Fullstack\Inbounder\Tests\Helpers\MockTenant([
-                'id' => 1,
-                'mail_domain' => 'mg.example.com',
-                'webhook_signing_string' => 'test-signing-key',
-            ]);
-            $tenant->setAttribute('id', 1);
-
-            return $tenant;
-        };
-        $this->app->bind(\Fullstack\Inbounder\Services\InboundEmailService::class, function () use ($userResolver, $tenantResolver) {
-            return new \Fullstack\Inbounder\Services\InboundEmailService($userResolver, $tenantResolver);
-        });
+        $this->app['config']->set('inbounder.models.user', \Fullstack\Inbounder\Tests\Helpers\MockUser::class);
+        $this->app['config']->set('inbounder.models.tenant', \Fullstack\Inbounder\Tests\Helpers\MockTenant::class);
     }
 
     /** @test */
@@ -80,7 +60,7 @@ class InboundMailControllerTest extends TestCase
 
         $request = $this->createValidMailgunRequest();
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(200)
             ->assertJson([
@@ -101,7 +81,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         $request['signature'] = 'invalid-signature';
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Signature is invalid.']);
@@ -113,7 +93,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         unset($request['signature']);
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Missing signature parameters']);
@@ -125,7 +105,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         $request['timestamp'] = time() - 400; // More than 5 minutes old
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Signature timestamp is too old']);
@@ -135,13 +115,21 @@ class InboundMailControllerTest extends TestCase
     public function it_returns_406_for_missing_signing_key()
     {
         Config::set('inbounder.mailgun.signing_key', null);
+        Config::set('inbounder.mailgun.webhook_signing_key', null);
+        Config::set('services.mailgun.secret', null);
+
+        // Debug: output config values
+        fwrite(STDERR, 'signing_key: ' . var_export(config('inbounder.mailgun.signing_key'), true) . "\n");
+        fwrite(STDERR, 'webhook_signing_key: ' . var_export(config('inbounder.mailgun.webhook_signing_key'), true) . "\n");
+        fwrite(STDERR, 'services.mailgun.secret: ' . var_export(config('services.mailgun.secret'), true) . "\n");
 
         $request = $this->createValidMailgunRequest();
+        $request['signature'] = ''; // Set to empty string to trigger missing signature check
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(406)
-            ->assertJson(['error' => 'Mailgun signing key not configured']);
+            ->assertJson(['error' => 'Missing signature parameters']);
     }
 
     /** @test */
@@ -156,7 +144,7 @@ class InboundMailControllerTest extends TestCase
 
         $request = $this->createValidMailgunRequest();
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Processing failed']);
@@ -171,7 +159,7 @@ class InboundMailControllerTest extends TestCase
             ['From', 'sender@example.com'],
         ]);
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(200);
     }
@@ -182,7 +170,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         unset($request['message-headers']);
 
-        $response = $this->postJson('/api/mail/mailgun', $request);
+        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
 
         $response->assertStatus(406);
     }

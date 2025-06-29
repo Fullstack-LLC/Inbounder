@@ -25,7 +25,7 @@ trait VerifySignature
     {
         $signature = $request->get('signature');
         $timestamp = $request->get('timestamp');
-        $token = $request->get('signature.token');
+        $token = $request->get('token');
 
         if (! $signature || ! $timestamp || ! $token) {
             throw new Exception('Missing signature parameters');
@@ -37,9 +37,22 @@ trait VerifySignature
             throw new Exception('Signature timestamp is too old');
         }
 
-        // Verify signature
-        $signingKey = config('inbounder.mailgun.signing_key');
-        if (! $signingKey) {
+        // Try to get signing key from tenant-specific configuration first
+        $signingKey = $this->getSigningKey($request);
+
+        // Debug: log tenant signing key
+        logger()->debug('VerifySignature tenantSigningKey', ['signingKey' => $signingKey]);
+
+        // Fall back to global Mailgun signing key if tenant-specific key not found
+        if (!$signingKey) {
+            $signingKey = config('inbounder.mailgun.webhook_signing_key')
+                ?? config('inbounder.mailgun.signing_key')
+                ?? config('services.mailgun.secret');
+        }
+
+        // Debug: log final signing key value
+        logger()->debug('VerifySignature finalSigningKey', ['signingKey' => $signingKey]);
+        if (!isset($signingKey) || $signingKey === '' || $signingKey === null) {
             throw new Exception('Mailgun signing key not configured');
         }
 
@@ -55,16 +68,22 @@ trait VerifySignature
         ]);
     }
 
-    private function getSigningKey(Request $request): string
+    private function getSigningKey(Request $request): ?string
     {
-        $fromDomain = 'mg.'.$this->extractDomain($request->get('from'));
-        $tenantModelClass = $this->getTenantModelClass();
+        try {
+            $fromDomain = 'mg.'.$this->extractDomain($request->get('from'));
+            $tenantModelClass = $this->getTenantModelClass();
 
-        $signingKey = $tenantModelClass::where('mail_domain', $fromDomain)->first()->webhook_signing_string ?? null;
-        if (! $signingKey) {
-            throw new Exception('No signing key found for domain '.$fromDomain.'.');
+            $tenant = $tenantModelClass::where('mail_domain', $fromDomain)->first();
+            return $tenant?->webhook_signing_string;
+        } catch (Exception $e) {
+            // If tenant lookup fails, return null to fall back to global config
+            return null;
         }
+    }
 
-        return $signingKey;
+    private function extractDomain(string $email): string
+    {
+        return substr(strrchr($email, '@'), 1);
     }
 }

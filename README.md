@@ -1,3 +1,17 @@
+# Inbounder for Laravel
+
+**Inbounder** is a Laravel package for advanced inbound email processing via Mailgun. It provides:
+
+- Secure Mailgun webhook handling with signature verification
+- Automatic parsing and storage of emails and attachments
+- Multi-recipient (To, CC, BCC) and multi-tenant support
+- Event-driven architecture for custom workflows
+- Built-in analytics and monitoring APIs for email events, delivery, engagement, and system health
+- Role/permission-based authorization
+- Comprehensive test coverage and production readiness
+
+Perfect for building support ticketing systems, document workflows, email archiving, SaaS platforms, and more.
+
 # Inbounder - Laravel Mailgun Inbound Email Handler
 
 A Laravel package for handling Mailgun inbound emails with attachments and event-driven processing. Perfect for building support ticketing systems, document processing workflows, and email archiving solutions.
