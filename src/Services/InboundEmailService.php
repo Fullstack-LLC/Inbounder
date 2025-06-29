@@ -73,7 +73,7 @@ class InboundEmailService
                 $this->processAttachments($attachments, $email->id, $request);
             }
 
-            // Dispatch events if enabled
+            // Dispatch events if enabled (only on success)
             if (config('inbounder.events.enabled', true)) {
                 event(new InboundEmailReceived($emailData, $attachments, $request->all()));
                 event(new InboundEmailProcessed($email, $attachments));
@@ -81,9 +81,21 @@ class InboundEmailService
 
             return $email;
         } catch (Exception $e) {
+            // Fallback for $emailData if not set
+            $emailDataForEvent = [];
+            try {
+                $emailDataForEvent = isset($emailData) ? $emailData : [
+                    'message_id' => $this->extractMessageId($request),
+                    'from_email' => $this->extractSenderEmail($request),
+                    'to_email' => $this->extractRecipientEmail($request),
+                ];
+            } catch (\Throwable $ex) {
+                // fallback to empty array if even extraction fails
+            }
+
             // Dispatch failure event if enabled
             if (config('inbounder.events.enabled', true)) {
-                event(new InboundEmailFailed($emailData, $e->getMessage(), $request->all()));
+                event(new InboundEmailFailed($emailDataForEvent, $e->getMessage(), $request->all()));
             }
 
             throw $e;

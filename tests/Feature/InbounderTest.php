@@ -4,12 +4,12 @@ namespace Fullstack\Inbounder\Tests\Feature;
 
 use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Orchestra\Testbench\TestCase;
 
 class InbounderTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseMigrations;
 
     protected function getPackageProviders($app)
     {

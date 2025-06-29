@@ -121,14 +121,10 @@ class InbounderServiceProviderTest extends TestCase
     /** @test */
     public function it_has_attachments_config()
     {
-        $provider = new InbounderServiceProvider($this->app);
-        $provider->register();
-
         $attachmentsConfig = Config::get('inbounder.attachments');
 
         $this->assertArrayHasKey('max_file_size', $attachmentsConfig);
         $this->assertArrayHasKey('storage_disk', $attachmentsConfig);
-        $this->assertArrayHasKey('storage_path', $attachmentsConfig);
     }
 
     /** @test */
@@ -183,14 +179,10 @@ class InbounderServiceProviderTest extends TestCase
     /** @test */
     public function it_uses_default_attachment_settings()
     {
-        $provider = new InbounderServiceProvider($this->app);
-        $provider->register();
-
         $attachmentsConfig = Config::get('inbounder.attachments');
 
         $this->assertEquals(20 * 1024 * 1024, $attachmentsConfig['max_file_size']); // 20MB
         $this->assertEquals('local', $attachmentsConfig['storage_disk']);
-        $this->assertEquals('inbound-emails/attachments', $attachmentsConfig['storage_path']);
     }
 
     /** @test */
@@ -226,7 +218,7 @@ class InbounderServiceProviderTest extends TestCase
 
         $routesConfig = Config::get('inbounder.routes');
 
-        $this->assertEquals('api/mail/mailgun', $routesConfig['prefix']);
+        $this->assertEquals('api/webhooks/mailgun', $routesConfig['prefix']);
         $this->assertEquals('api', $routesConfig['middleware']);
     }
 

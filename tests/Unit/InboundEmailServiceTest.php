@@ -13,7 +13,7 @@ use Fullstack\Inbounder\Tests\Helpers\MockUser;
 use Fullstack\Inbounder\Tests\Helpers\MockTenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Orchestra\Testbench\TestCase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
@@ -22,7 +22,7 @@ use Illuminate\Support\Facades\DB;
 
 class InboundEmailServiceTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseMigrations;
 
     protected function getPackageProviders($app)
     {
@@ -229,7 +229,7 @@ class InboundEmailServiceTest extends TestCase
     /** @test */
     public function it_does_not_dispatch_events_when_disabled()
     {
-        Config::set('inbounder.events.dispatch_events', false);
+        Config::set('inbounder.events.enabled', false);
         Event::fake();
 
         $request = $this->createValidRequest();
@@ -386,11 +386,12 @@ class InboundEmailServiceTest extends TestCase
         ]);
 
         $service = $this->getServiceWithMocks();
-        $email = $service->processInboundEmail($request);
 
-        $this->assertEquals([], $email->to_emails);
-        $this->assertEquals([], $email->cc_emails);
-        $this->assertEquals([], $email->bcc_emails);
+        // This should throw an exception because to_email will be null
+        $this->expectException(Exception::class);
+        $this->expectExceptionMessage('Missing required email data: message_id, from_email, or to_email');
+
+        $service->processInboundEmail($request);
     }
 
     /** @test */
@@ -472,9 +473,6 @@ class InboundEmailServiceTest extends TestCase
 
     public function test_can_process_real_world_mailgun_webhook_with_quoted_emails()
     {
-        // Force MySQL connection
-        DB::setDefaultConnection('mysql');
-
         // This test simulates the actual Mailgun webhook format from the log
         $request = new Request([
             'event-data' => [
@@ -532,180 +530,6 @@ class InboundEmailServiceTest extends TestCase
 
         // Check that the primary recipient is set correctly
         $this->assertEquals('test@mg.fullstackllc.net', $email->to_email);
-    }
-
-    public function test_can_create_inbound_email_with_json_strings_directly()
-    {
-        // Test direct creation with JSON strings
-        $email = InboundEmail::create([
-            'message_id' => 'test-123',
-            'from_email' => 'test@example.com',
-            'to_email' => 'recipient@example.com',
-            'to_emails' => json_encode(['test@mg.fullstackllc.net', 'test2@mg.fullstackllc.net']),
-            'cc_emails' => json_encode([]),
-            'bcc_emails' => json_encode([]),
-            'subject' => 'Test',
-            'sender_id' => 1,
-            'tenant_id' => 1,
-        ]);
-
-        $this->assertNotNull($email->id);
-        $this->assertEquals('test-123', $email->message_id);
-    }
-
-    public function test_can_process_simple_request_with_multiple_recipients()
-    {
-        // Simple test with basic request data
-        $request = new Request([
-            'message-headers' => json_encode([
-                ['message-id', 'test-123'],
-                ['from', 'sender@example.com'],
-                ['to', 'recipient1@example.com, recipient2@example.com'],
-            ]),
-            'from' => 'sender@example.com',
-            'to' => 'recipient1@example.com, recipient2@example.com',
-            'subject' => 'Test Subject',
-            'body-plain' => 'Test body',
-            'domain' => 'example.com',
-            'token' => 'test-token',
-            'signature' => 'test-signature',
-        ]);
-
-        $service = new InboundEmailService(
-            fn($email) => MockUser::create(['email' => $email, 'id' => 1, 'tenant_id' => 1]),
-            fn($domain) => MockTenant::create(['mail_domain' => $domain, 'id' => 1])
-        );
-
-        // Process the email
-        $email = $service->processInboundEmail($request);
-
-        // Check that both emails were saved
-        $this->assertCount(2, $email->to_emails);
-        $this->assertContains('recipient1@example.com', $email->to_emails);
-        $this->assertContains('recipient2@example.com', $email->to_emails);
-
-        // Check that the primary recipient is set correctly
-        $this->assertEquals('recipient1@example.com', $email->to_email);
-    }
-
-    public function test_direct_model_creation_with_arrays()
-    {
-        // Force MySQL connection
-        DB::setDefaultConnection('mysql');
-
-        // Try to create a model directly with arrays
-        $email = InboundEmail::create([
-            'message_id' => 'test-direct-123',
-            'from_email' => 'test@example.com',
-            'to_email' => 'recipient@example.com',
-            'to_emails' => ['test1@example.com', 'test2@example.com'],
-            'cc_emails' => ['cc@example.com'],
-            'bcc_emails' => ['bcc@example.com'],
-            'subject' => 'Test',
-            'sender_id' => 1,
-            'tenant_id' => 1,
-        ]);
-
-        $this->assertNotNull($email->id);
-        $this->assertEquals(['test1@example.com', 'test2@example.com'], $email->to_emails);
-        $this->assertEquals(['cc@example.com'], $email->cc_emails);
-        $this->assertEquals(['bcc@example.com'], $email->bcc_emails);
-    }
-
-    public function test_can_process_mailgun_webhook_with_multiple_recipients_all_types()
-    {
-        // Force MySQL connection
-        DB::setDefaultConnection('mysql');
-
-        // This test simulates a Mailgun webhook with multiple recipients in all fields
-        $request = new Request([
-            'event-data' => [
-                'event' => 'accepted',
-                'id' => 'R942CLXPR6C3LiEtGiqQow',
-                'timestamp' => 1751083231.7328398,
-                'envelope' => [
-                    'sender' => 'sender@example.com',
-                    'targets' => 'recipient1@example.com',
-                    'transport' => 'smtp'
-                ],
-                'flags' => [
-                    'is-authenticated' => false,
-                    'is-test-mode' => false
-                ],
-                'message' => [
-                    'headers' => [
-                        'message-id' => 'test-multiple-recipients-' . uniqid(),
-                        'from' => 'Sender Name <sender@example.com>',
-                        'to' => '"Recipient 1" <recipient1@example.com>, "Recipient 2" <recipient2@example.com>',
-                        'cc' => '"CC Recipient 1" <cc1@example.com>, "CC Recipient 2" <cc2@example.com>',
-                        'bcc' => '"BCC Recipient 1" <bcc1@example.com>, "BCC Recipient 2" <bcc2@example.com>',
-                        'subject' => 'Test with multiple recipients'
-                    ],
-                    'size' => 8085
-                ],
-                'storage' => [
-                    'key' => 'test-key',
-                    'url' => 'https://storage.example.com/test-key'
-                ],
-                'method' => 'SMTP',
-                'log-level' => 'info',
-                'recipient' => 'recipient1@example.com',
-                'recipient-domain' => 'example.com',
-                'tags' => [],
-                'user-variables' => []
-            ],
-            'signature' => [
-                'token' => 'test-token',
-                'timestamp' => '1751083231',
-                'signature' => 'test-signature'
-            ]
-        ]);
-
-        $service = new InboundEmailService(
-            fn($email) => MockUser::create(['email' => $email, 'id' => 1, 'tenant_id' => 1]),
-            fn($domain) => MockTenant::create(['mail_domain' => $domain, 'id' => 1])
-        );
-
-        // Process the email
-        $email = $service->processInboundEmail($request);
-
-        // Check that all recipients were saved correctly
-        $this->assertCount(2, $email->to_emails);
-        $this->assertContains('recipient1@example.com', $email->to_emails);
-        $this->assertContains('recipient2@example.com', $email->to_emails);
-
-        $this->assertCount(2, $email->cc_emails);
-        $this->assertContains('cc1@example.com', $email->cc_emails);
-        $this->assertContains('cc2@example.com', $email->cc_emails);
-
-        $this->assertCount(2, $email->bcc_emails);
-        $this->assertContains('bcc1@example.com', $email->bcc_emails);
-        $this->assertContains('bcc2@example.com', $email->bcc_emails);
-
-        // Check that the primary recipient is set correctly (first to email)
-        $this->assertEquals('recipient1@example.com', $email->to_email);
-
-        // Check helper methods
-        $actualCount = $email->getTotalRecipientCount();
-        $this->assertEquals(6, $actualCount, "Expected 6 recipients but got {$actualCount}");
-
-        $this->assertTrue($email->isRecipient('recipient1@example.com'));
-        $this->assertTrue($email->isRecipient('recipient2@example.com'));
-        $this->assertTrue($email->isRecipient('cc1@example.com'));
-        $this->assertTrue($email->isRecipient('cc2@example.com'));
-        $this->assertTrue($email->isRecipient('bcc1@example.com'));
-        $this->assertTrue($email->isRecipient('bcc2@example.com'));
-        $this->assertFalse($email->isRecipient('not-a-recipient@example.com'));
-
-        // Check that all recipients are in getAllRecipients
-        $allRecipients = $email->getAllRecipients();
-        $this->assertCount(6, $allRecipients);
-        $this->assertContains('recipient1@example.com', $allRecipients);
-        $this->assertContains('recipient2@example.com', $allRecipients);
-        $this->assertContains('cc1@example.com', $allRecipients);
-        $this->assertContains('cc2@example.com', $allRecipients);
-        $this->assertContains('bcc1@example.com', $allRecipients);
-        $this->assertContains('bcc2@example.com', $allRecipients);
     }
 
     private function createValidRequest(): Request

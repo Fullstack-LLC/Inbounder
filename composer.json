@@ -23,7 +23,10 @@
     "autoload": {
         "psr-4": {
             "Fullstack\\Inbounder\\": "src/"
-        }
+        },
+        "classmap": [
+            "database/seeders"
+        ]
     },
     "autoload-dev": {
         "psr-4": {

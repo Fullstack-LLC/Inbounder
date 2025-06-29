@@ -12,16 +12,10 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('inbound_emails', function (Blueprint $table) {
-            // Add JSON fields for multiple recipients
+            // Use JSON fields for multiple recipients (MySQL supports JSON natively)
             $table->json('to_emails')->nullable()->after('to_name');
             $table->json('cc_emails')->nullable()->after('to_emails');
             $table->json('bcc_emails')->nullable()->after('cc_emails');
-        });
-
-        // Make the original fields nullable in a separate operation
-        Schema::table('inbound_emails', function (Blueprint $table) {
-            $table->string('to_email')->nullable()->change();
-            $table->string('to_name')->nullable()->change();
         });
     }
 
@@ -32,12 +26,6 @@ return new class extends Migration
     {
         Schema::table('inbound_emails', function (Blueprint $table) {
             $table->dropColumn(['to_emails', 'cc_emails', 'bcc_emails']);
-        });
-
-        // Restore original fields to not nullable
-        Schema::table('inbound_emails', function (Blueprint $table) {
-            $table->string('to_email')->nullable(false)->change();
-            $table->string('to_name')->nullable(false)->change();
         });
     }
 };

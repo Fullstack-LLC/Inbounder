@@ -41,40 +41,82 @@ php artisan migrate
 Add these to your `.env` file:
 
 ```env
-# Mailgun Configuration
+# Standard Laravel Mailgun Configuration (for sending emails)
+MAILGUN_SECRET=your-mailgun-api-key
+MAILGUN_DOMAIN=your-mailgun-domain
+MAILGUN_ENDPOINT=api.mailgun.net
+MAILGUN_SCHEME=https
+
+# Inbounder-specific Mailgun Configuration (for receiving webhooks)
 MAILGUN_SIGNING_KEY=your-mailgun-signing-key
 MAILGUN_WEBHOOK_SIGNING_KEY=your-webhook-signing-key
-MAILGUN_DOMAIN=your-mailgun-domain
 
 # Inbounder Configuration
 INBOUNDER_MAX_ATTACHMENT_SIZE=20971520
 INBOUNDER_STORAGE_DISK=local
-INBOUNDER_STORAGE_PATH=inbound-emails/attachments
 INBOUNDER_REQUIRED_PERMISSION=can-send-emails
 INBOUNDER_REQUIRED_ROLE=tenant-admin
 INBOUNDER_DISPATCH_EVENTS=true
 INBOUNDER_LOG_EVENTS=true
+
+# Logging Configuration
+INBOUNDER_LOGGING_ENABLED=true
+INBOUNDER_LOG_CHANNEL=inbounder
+INBOUNDER_LOG_LEVEL=info
+INBOUNDER_PERFORMANCE_TRACKING=true
+INBOUNDER_ERROR_TRACKING=true
+
+# Analytics Configuration
+INBOUNDER_ANALYTICS_ENABLED=true
+INBOUNDER_ANALYTICS_RETENTION_DAYS=90
+INBOUNDER_REAL_TIME_METRICS=true
 ```
 
-## Step 6: Test the Installation
+## Step 6: Configure Logging Channel
 
-The package will automatically register the route `/api/mail/mailgun` for handling Mailgun webhooks.
+Add this to your `config/logging.php`:
+
+```php
+'channels' => [
+    // ... other channels
+
+    'inbounder' => [
+        'driver' => 'daily',
+        'path' => storage_path('logs/inbounder.log'),
+        'level' => env('INBOUNDER_LOG_LEVEL', 'info'),
+        'days' => 14,
+    ],
+],
+```
+
+## Step 7: Run Migrations
+
+```bash
+php artisan migrate
+```
+
+## Step 8: Test the Installation
+
+The package will automatically register these routes:
+
+- **Webhook**: `POST /api/webhooks/mailgun` - Handles Mailgun webhooks
+- **Analytics**: `GET /api/webhooks/mailgun/analytics` - Get email analytics
+- **Monitoring**: `GET /api/webhooks/mailgun/monitoring/health` - Health check
 
 You can test it by sending an email to your Mailgun domain and checking if it's processed correctly.
 
-## Development
+## Available API Endpoints
 
-To make changes to the package:
+### Analytics Endpoints
+- `GET /api/webhooks/mailgun/analytics` - Get analytics for a date range
+- `GET /api/webhooks/mailgun/analytics/realtime` - Get real-time metrics
+- `GET /api/webhooks/mailgun/analytics/export` - Export analytics to CSV
+- `GET /api/webhooks/mailgun/analytics/senders` - Get top senders
+- `GET /api/webhooks/mailgun/analytics/geography` - Get geographic distribution
+- `GET /api/webhooks/mailgun/analytics/devices` - Get device distribution
 
-1. Edit files in `packages/redbird/inbounder/src/`
-2. Run `composer dump-autoload` to reload changes
-3. Test your changes
-
-## Publishing to Packagist
-
-When ready to publish:
-
-1. Create a GitHub repository
-2. Push the package code
-3. Register on Packagist.org
-4. Update the `composer.json` to point to the public repository
+### Monitoring Endpoints
+- `GET /api/webhooks/mailgun/monitoring/health` - Health check
+- `GET /api/webhooks/mailgun/monitoring/alerts` - Get system alerts
+- `GET /api/webhooks/mailgun/monitoring/performance` - Get performance metrics
+- `GET /api/webhooks/mailgun/monitoring/status` - Get system status

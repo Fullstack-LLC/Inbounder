@@ -287,7 +287,7 @@ The original `to_email` and `to_name` fields are maintained for backward compati
 
 ## API Endpoints
 
-### POST /api/mail/mailgun
+### POST /api/webhooks/mailgun
 
 Handles incoming Mailgun webhooks with full Mailgun compliance.
 

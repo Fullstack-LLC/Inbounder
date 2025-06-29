@@ -43,7 +43,7 @@ class InbounderServiceProvider extends ServiceProvider
     protected function loadRoutes(): void
     {
         Route::middleware('api')
-            ->prefix('api/mail/mailgun')
+            ->prefix('api/webhooks/mailgun')
             ->group(__DIR__.'/../routes/api.php');
     }
 }

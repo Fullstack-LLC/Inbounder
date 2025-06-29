@@ -6,12 +6,13 @@ use Fullstack\Inbounder\Events\InboundEmailFailed;
 use Fullstack\Inbounder\Events\InboundEmailProcessed;
 use Fullstack\Inbounder\Events\InboundEmailReceived;
 use Fullstack\Inbounder\Models\InboundEmail;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Orchestra\Testbench\TestCase;
+use Illuminate\Broadcasting\PrivateChannel;
 
 class EventsTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseMigrations;
 
     protected function getPackageProviders($app)
     {
@@ -253,22 +254,94 @@ class EventsTest extends TestCase
     /** @test */
     public function it_handles_complex_error_message_in_failed_event()
     {
-        $emailData = [
-            'message_id' => '<test@example.com>',
-            'from_email' => 'sender@example.com',
-            'to_email' => 'recipient@example.com',
-        ];
-
-        $errorMessage = 'User with email sender@example.com not found. Please ensure the sender is registered in the system.';
-        $requestData = [
-            'from' => 'sender@example.com',
-            'To' => 'recipient@example.com',
-            'subject' => 'Test Email',
-        ];
+        $emailData = ['from' => 'test@example.com'];
+        $errorMessage = 'Complex error with special characters: <>&"\' and newlines\nand tabs\t';
+        $requestData = ['test' => 'data'];
 
         $event = new InboundEmailFailed($emailData, $errorMessage, $requestData);
 
         $this->assertEquals($errorMessage, $event->error);
-        $this->assertStringContainsString('User with email sender@example.com not found', $event->error);
+        $this->assertEquals($requestData, $event->requestData);
+    }
+
+    /** @test */
+    public function it_creates_inbound_email_received_event_with_broadcasting()
+    {
+        $emailData = ['from' => 'test@example.com', 'to' => 'recipient@example.com'];
+        $attachments = [['name' => 'test.pdf', 'size' => 1024]];
+        $requestData = ['signature' => 'valid', 'timestamp' => time()];
+
+        $event = new InboundEmailReceived($emailData, $attachments, $requestData);
+
+        $this->assertEquals($emailData, $event->emailData);
+        $this->assertEquals($attachments, $event->attachments);
+        $this->assertEquals($requestData, $event->requestData);
+
+        // Test broadcasting
+        $channels = $event->broadcastOn();
+        $this->assertIsArray($channels);
+        $this->assertCount(1, $channels);
+        $this->assertInstanceOf(PrivateChannel::class, $channels[0]);
+    }
+
+    /** @test */
+    public function it_creates_inbound_email_processed_event_with_broadcasting()
+    {
+        $email = new InboundEmail([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'recipient@example.com',
+            'subject' => 'Test Email',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $event = new InboundEmailProcessed($email, [['name' => 'test.pdf', 'size' => 1024]]);
+
+        $this->assertEquals($email, $event->email);
+        $this->assertEquals([['name' => 'test.pdf', 'size' => 1024]], $event->attachments);
+
+        // Test broadcasting
+        $channels = $event->broadcastOn();
+        $this->assertIsArray($channels);
+        $this->assertCount(1, $channels);
+        $this->assertInstanceOf(PrivateChannel::class, $channels[0]);
+    }
+
+    /** @test */
+    public function it_creates_inbound_email_failed_event_with_broadcasting()
+    {
+        $emailData = ['from' => 'test@example.com'];
+        $errorMessage = 'Test error message';
+        $requestData = ['test' => 'data'];
+
+        $event = new InboundEmailFailed($emailData, $errorMessage, $requestData);
+
+        $this->assertEquals($errorMessage, $event->error);
+        $this->assertEquals($requestData, $event->requestData);
+
+        // Test broadcasting
+        $channels = $event->broadcastOn();
+        $this->assertIsArray($channels);
+        $this->assertCount(1, $channels);
+        $this->assertInstanceOf(PrivateChannel::class, $channels[0]);
+    }
+
+    /** @test */
+    public function it_handles_events_with_serialization()
+    {
+        $emailData = ['from' => 'test@example.com'];
+        $attachments = [['name' => 'test.pdf']];
+        $requestData = ['signature' => 'valid'];
+
+        $event = new InboundEmailReceived($emailData, $attachments, $requestData);
+
+        // Test that the event can be serialized
+        $serialized = serialize($event);
+        $unserialized = unserialize($serialized);
+
+        $this->assertEquals($event->emailData, $unserialized->emailData);
+        $this->assertEquals($event->attachments, $unserialized->attachments);
+        $this->assertEquals($event->requestData, $unserialized->requestData);
     }
 }

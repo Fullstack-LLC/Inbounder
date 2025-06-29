@@ -2,17 +2,19 @@
 
 namespace Fullstack\Inbounder\Tests\Unit;
 
+use Carbon\Carbon;
 use Fullstack\Inbounder\Models\InboundEmail;
 use Fullstack\Inbounder\Models\InboundEmailAttachment;
+use Fullstack\Inbounder\Models\InboundEmailEvent;
 use Fullstack\Inbounder\Tests\Helpers\MockTenant;
 use Fullstack\Inbounder\Tests\Helpers\MockUser;
-use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Foundation\Testing\DatabaseMigrations;
 use Illuminate\Support\Facades\Config;
 use Orchestra\Testbench\TestCase;
 
 class InboundEmailModelTest extends TestCase
 {
-    use RefreshDatabase;
+    use DatabaseMigrations;
 
     protected function getPackageProviders($app)
     {
@@ -384,5 +386,366 @@ class InboundEmailModelTest extends TestCase
         $this->assertEquals(['primary@example.com'], $email->getAllRecipients());
         $this->assertEquals(1, $email->getTotalRecipientCount());
         $this->assertEquals('primary@example.com', $email->getPrimaryRecipient());
+    }
+
+    /** @test */
+    public function it_returns_delivered_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(1, $email->delivered());
+    }
+
+    /** @test */
+    public function it_returns_opened_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(1, $email->opened());
+    }
+
+    /** @test */
+    public function it_returns_clicked_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(1, $email->clicked());
+    }
+
+    /** @test */
+    public function it_returns_bounced_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0, $email->bounced());
+    }
+
+    /** @test */
+    public function it_returns_dropped_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0, $email->dropped());
+    }
+
+    /** @test */
+    public function it_returns_complained_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0, $email->complained());
+    }
+
+    /** @test */
+    public function it_returns_unsubscribed_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0, $email->unsubscribed());
+    }
+
+    /** @test */
+    public function it_returns_failed_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0, $email->failed());
+
+        // Add a bounced event
+        InboundEmailEvent::create([
+            'inbound_email_id' => $email->id,
+            'event_type' => 'bounced',
+            'occurred_at' => Carbon::now(),
+        ]);
+
+        $this->assertEquals(1, $email->failed());
+    }
+
+    /** @test */
+    public function it_returns_engaged_count()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(2, $email->engaged()); // opened + clicked
+    }
+
+    /** @test */
+    public function it_checks_if_email_was_delivered()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertTrue($email->wasDelivered());
+    }
+
+    /** @test */
+    public function it_checks_if_email_was_opened()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertTrue($email->wasOpened());
+    }
+
+    /** @test */
+    public function it_checks_if_email_was_clicked()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertTrue($email->wasClicked());
+    }
+
+    /** @test */
+    public function it_checks_if_email_has_failed()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertFalse($email->hasFailed());
+
+        // Add a bounced event
+        InboundEmailEvent::create([
+            'inbound_email_id' => $email->id,
+            'event_type' => 'bounced',
+            'occurred_at' => Carbon::now(),
+        ]);
+
+        $this->assertTrue($email->hasFailed());
+    }
+
+    /** @test */
+    public function it_calculates_open_rate()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(100.0, $email->getOpenRate()); // 1 opened / 1 recipient
+    }
+
+    /** @test */
+    public function it_calculates_click_rate()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(100.0, $email->getClickRate()); // 1 clicked / 1 recipient
+    }
+
+    /** @test */
+    public function it_calculates_bounce_rate()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0.0, $email->getBounceRate());
+
+        // Add a bounced event
+        InboundEmailEvent::create([
+            'inbound_email_id' => $email->id,
+            'event_type' => 'bounced',
+            'occurred_at' => Carbon::now(),
+        ]);
+
+        $this->assertEquals(100.0, $email->getBounceRate()); // 1 bounced / 1 recipient
+    }
+
+    /** @test */
+    public function it_calculates_failure_rate()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $this->assertEquals(0.0, $email->getFailureRate());
+
+        // Add a bounced event
+        InboundEmailEvent::create([
+            'inbound_email_id' => $email->id,
+            'event_type' => 'bounced',
+            'occurred_at' => Carbon::now(),
+        ]);
+
+        $this->assertEquals(100.0, $email->getFailureRate()); // 1 failed / 1 recipient
+    }
+
+    /** @test */
+    public function it_returns_comprehensive_stats()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $stats = $email->stats();
+
+        $this->assertArrayHasKey('recipient_count', $stats);
+        $this->assertArrayHasKey('events', $stats);
+        $this->assertArrayHasKey('rates', $stats);
+        $this->assertArrayHasKey('status', $stats);
+        $this->assertArrayHasKey('first_event_at', $stats);
+        $this->assertArrayHasKey('last_event_at', $stats);
+        $this->assertArrayHasKey('total_events', $stats);
+
+        $this->assertEquals(1, $stats['recipient_count']);
+        $this->assertEquals(3, $stats['total_events']);
+        $this->assertEquals(1, $stats['events']['delivered']);
+        $this->assertEquals(1, $stats['events']['opened']);
+        $this->assertEquals(1, $stats['events']['clicked']);
+        $this->assertEquals(100.0, $stats['rates']['open_rate']);
+        $this->assertEquals(100.0, $stats['rates']['click_rate']);
+        $this->assertTrue($stats['status']['was_delivered']);
+        $this->assertTrue($stats['status']['was_opened']);
+        $this->assertTrue($stats['status']['was_clicked']);
+        $this->assertFalse($stats['status']['failed']);
+    }
+
+    /** @test */
+    public function it_handles_zero_recipients_correctly()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'recipient@example.com',
+            'subject' => 'Test Email',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $this->assertEquals(0.0, $email->getOpenRate());
+        $this->assertEquals(0.0, $email->getClickRate());
+        $this->assertEquals(0.0, $email->getBounceRate());
+        $this->assertEquals(0.0, $email->getFailureRate());
+    }
+
+    /** @test */
+    public function it_returns_events_by_type()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $deliveredEvents = $email->getEventsByType('delivered');
+        $this->assertEquals(1, $deliveredEvents->count());
+
+        $openedEvents = $email->getEventsByType('opened');
+        $this->assertEquals(1, $openedEvents->count());
+    }
+
+    /** @test */
+    public function it_returns_first_event_of_type()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $firstDelivered = $email->getFirstEvent('delivered');
+        $this->assertNotNull($firstDelivered);
+        $this->assertEquals('delivered', $firstDelivered->event_type);
+
+        $firstBounced = $email->getFirstEvent('bounced');
+        $this->assertNull($firstBounced);
+    }
+
+    /** @test */
+    public function it_returns_last_event_of_type()
+    {
+        $email = $this->createEmailWithEvents();
+
+        // Add another delivered event
+        InboundEmailEvent::create([
+            'inbound_email_id' => $email->id,
+            'event_type' => 'delivered',
+            'occurred_at' => Carbon::now()->addMinutes(5),
+        ]);
+
+        $lastDelivered = $email->getLastEvent('delivered');
+        $this->assertNotNull($lastDelivered);
+        $this->assertEquals('delivered', $lastDelivered->event_type);
+    }
+
+    /** @test */
+    public function it_returns_geographic_events()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $geographicEvents = $email->getGeographicEvents();
+        $this->assertEquals(3, $geographicEvents->count());
+
+        foreach ($geographicEvents as $event) {
+            $this->assertNotNull($event->country);
+        }
+    }
+
+    /** @test */
+    public function it_returns_device_events()
+    {
+        $email = $this->createEmailWithEvents();
+
+        $deviceEvents = $email->getDeviceEvents();
+        $this->assertEquals(3, $deviceEvents->count());
+
+        foreach ($deviceEvents as $event) {
+            $this->assertNotNull($event->device_type);
+        }
+    }
+
+    /** @test */
+    public function it_calculates_total_recipient_count()
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'recipient@example.com',
+            'to_emails' => ['recipient1@example.com', 'recipient2@example.com'],
+            'cc_emails' => ['cc1@example.com'],
+            'bcc_emails' => ['bcc1@example.com', 'bcc2@example.com'],
+            'subject' => 'Test Email',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        $this->assertEquals(5, $email->getTotalRecipientCount()); // 2 to + 1 cc + 2 bcc (original to_email is not counted separately)
+    }
+
+    private function createEmailWithEvents(): InboundEmail
+    {
+        $email = InboundEmail::create([
+            'message_id' => '<test@example.com>',
+            'from_email' => 'sender@example.com',
+            'to_email' => 'recipient@example.com',
+            'subject' => 'Test Email',
+            'sender_id' => 1,
+            'tenant_id' => 1,
+        ]);
+
+        // Create test events
+        $events = [
+            [
+                'event_type' => 'delivered',
+                'ip_address' => '192.168.1.1',
+                'country' => 'United States',
+                'region' => 'California',
+                'city' => 'San Francisco',
+                'device_type' => 'desktop',
+                'client_type' => 'webmail',
+                'client_name' => 'Gmail',
+                'occurred_at' => Carbon::now()->subMinutes(10),
+            ],
+            [
+                'event_type' => 'opened',
+                'ip_address' => '192.168.1.2',
+                'country' => 'United States',
+                'region' => 'New York',
+                'city' => 'New York',
+                'device_type' => 'mobile',
+                'client_type' => 'mobile',
+                'client_name' => 'iPhone Mail',
+                'occurred_at' => Carbon::now()->subMinutes(5),
+            ],
+            [
+                'event_type' => 'clicked',
+                'ip_address' => '192.168.1.3',
+                'country' => 'United States',
+                'region' => 'Texas',
+                'city' => 'Austin',
+                'device_type' => 'tablet',
+                'client_type' => 'webmail',
+                'client_name' => 'Outlook',
+                'occurred_at' => Carbon::now()->subMinutes(2),
+            ],
+        ];
+
+        foreach ($events as $eventData) {
+            InboundEmailEvent::create(array_merge($eventData, [
+                'inbound_email_id' => $email->id,
+            ]));
+        }
+
+        return $email;
     }
 }

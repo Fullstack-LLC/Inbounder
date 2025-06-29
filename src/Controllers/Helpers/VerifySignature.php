@@ -71,8 +71,8 @@ trait VerifySignature
     private function getSigningKey(Request $request): ?string
     {
         try {
-            $fromDomain = 'mg.'.$this->extractDomain($request->get('from'));
-            $tenantModelClass = $this->getTenantModelClass();
+        $fromDomain = 'mg.'.$this->extractDomain($request->get('from'));
+        $tenantModelClass = $this->getTenantModelClass();
 
             $tenant = $tenantModelClass::where('mail_domain', $fromDomain)->first();
             return $tenant?->webhook_signing_string;

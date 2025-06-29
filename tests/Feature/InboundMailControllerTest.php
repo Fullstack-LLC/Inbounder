@@ -60,7 +60,7 @@ class InboundMailControllerTest extends TestCase
 
         $request = $this->createValidMailgunRequest();
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(200)
             ->assertJson([
@@ -81,7 +81,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         $request['signature'] = 'invalid-signature';
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Signature is invalid.']);
@@ -93,7 +93,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         unset($request['signature']);
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Missing signature parameters']);
@@ -105,7 +105,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         $request['timestamp'] = time() - 400; // More than 5 minutes old
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Signature timestamp is too old']);
@@ -126,7 +126,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         $request['signature'] = ''; // Set to empty string to trigger missing signature check
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Missing signature parameters']);
@@ -144,7 +144,7 @@ class InboundMailControllerTest extends TestCase
 
         $request = $this->createValidMailgunRequest();
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(406)
             ->assertJson(['error' => 'Processing failed']);
@@ -159,7 +159,7 @@ class InboundMailControllerTest extends TestCase
             ['From', 'sender@example.com'],
         ]);
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(200);
     }
@@ -170,7 +170,7 @@ class InboundMailControllerTest extends TestCase
         $request = $this->createValidMailgunRequest();
         unset($request['message-headers']);
 
-        $response = $this->postJson('/api/mail/mailgun/mailgun', $request);
+        $response = $this->postJson('/api/webhooks/mailgun', $request);
 
         $response->assertStatus(406);
     }

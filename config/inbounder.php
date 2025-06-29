@@ -7,12 +7,19 @@ return [
     |--------------------------------------------------------------------------
     |
     | Configuration for Mailgun webhook handling and signature verification.
+    | Uses the same environment variables as Laravel's Mailgun mailer.
     |
     */
     'mailgun' => [
+        // Standard Laravel Mailgun variables
+        'secret' => env('MAILGUN_SECRET'),
+        'domain' => env('MAILGUN_DOMAIN'),
+        'endpoint' => env('MAILGUN_ENDPOINT', 'api.mailgun.net'),
+        'scheme' => env('MAILGUN_SCHEME', 'https'),
+
+        // Webhook-specific variables for inbound email processing
         'signing_key' => env('MAILGUN_SIGNING_KEY'),
         'webhook_signing_key' => env('MAILGUN_WEBHOOK_SIGNING_KEY'),
-        'domain' => env('MAILGUN_DOMAIN'),
     ],
 
     /*
@@ -39,7 +46,6 @@ return [
     'attachments' => [
         'max_file_size' => env('INBOUNDER_MAX_ATTACHMENT_SIZE', 20 * 1024 * 1024), // 20MB default
         'storage_disk' => env('INBOUNDER_STORAGE_DISK', 'local'),
-        'storage_path' => env('INBOUNDER_STORAGE_PATH', 'inbound-emails/attachments'),
     ],
 
     /*
@@ -73,6 +79,37 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Logging Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for structured logging and monitoring.
+    |
+    */
+    'logging' => [
+        'enabled' => env('INBOUNDER_LOGGING_ENABLED', true),
+        'channel' => env('INBOUNDER_LOG_CHANNEL', 'inbounder'),
+        'level' => env('INBOUNDER_LOG_LEVEL', 'info'),
+        'performance_tracking' => env('INBOUNDER_PERFORMANCE_TRACKING', true),
+        'error_tracking' => env('INBOUNDER_ERROR_TRACKING', true),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Analytics Settings
+    |--------------------------------------------------------------------------
+    |
+    | Configuration for email analytics and reporting.
+    |
+    */
+    'analytics' => [
+        'enabled' => env('INBOUNDER_ANALYTICS_ENABLED', true),
+        'retention_days' => env('INBOUNDER_ANALYTICS_RETENTION_DAYS', 90),
+        'real_time_metrics' => env('INBOUNDER_REAL_TIME_METRICS', true),
+        'export_formats' => ['csv', 'json'],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Route Settings
     |--------------------------------------------------------------------------
     |
@@ -80,7 +117,7 @@ return [
     |
     */
     'routes' => [
-        'prefix' => env('INBOUNDER_ROUTE_PREFIX', 'api/mail/mailgun'),
+        'prefix' => env('INBOUNDER_ROUTE_PREFIX', 'api/webhooks/mailgun'),
         'middleware' => env('INBOUNDER_ROUTE_MIDDLEWARE', 'api'),
     ],
 ];
