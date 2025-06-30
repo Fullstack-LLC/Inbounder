@@ -3,16 +3,38 @@
     "description": "A Laravel package for handling Mailgun inbound emails with attachments and event-driven processing",
     "type": "library",
     "license": "MIT",
+    "keywords": [
+        "laravel",
+        "mailgun",
+        "webhook",
+        "email",
+        "inbound",
+        "mail",
+        "notification"
+    ],
+    "homepage": "https://github.com/fullstack/inbounder",
+    "support": {
+        "issues": "https://github.com/fullstack/inbounder/issues",
+        "source": "https://github.com/fullstack/inbounder"
+    },
+    "funding": [
+        {
+            "type": "github",
+            "url": "https://github.com/sponsors/fullstack"
+        }
+    ],
     "authors": [
         {
             "name": "Fullstack Team",
-            "email": "team@fullstack.com"
+            "email": "team@fullstack.com",
+            "homepage": "https://fullstack.com"
         }
     ],
     "require": {
         "php": "^8.1",
         "laravel/framework": "^10.0|^11.0|^12.0",
-        "spatie/laravel-permission": "^5.0|^6.0"
+        "spatie/laravel-permission": "^5.0|^6.0",
+        "spatie/laravel-webhook-client": "^3.4"
     },
     "require-dev": {
         "orchestra/testbench": "^8.0|^9.0",

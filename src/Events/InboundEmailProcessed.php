@@ -2,7 +2,6 @@
 
 namespace Fullstack\Inbounder\Events;
 
-use Fullstack\Inbounder\Models\InboundEmail;
 use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Broadcasting\PresenceChannel;
@@ -10,6 +9,7 @@ use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
+use Spatie\WebhookClient\Models\WebhookCall;
 
 class InboundEmailProcessed
 {
@@ -17,16 +17,16 @@ class InboundEmailProcessed
     use InteractsWithSockets;
     use SerializesModels;
 
-    public InboundEmail $email;
+    public WebhookCall $webhookCall;
 
     public array $attachments;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(InboundEmail $email, array $attachments = [])
+    public function __construct(WebhookCall $webhookCall, array $attachments = [])
     {
-        $this->email = $email;
+        $this->webhookCall = $webhookCall;
         $this->attachments = $attachments;
     }
 

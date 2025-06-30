@@ -1,62 +1,19 @@
-# Inbounder for Laravel
+# Laravel Inbounder
 
-**Inbounder** is a Laravel package for advanced inbound email processing via Mailgun. It provides:
-
-- Secure Mailgun webhook handling with signature verification
-- Automatic parsing and storage of emails and attachments
-- Multi-recipient (To, CC, BCC) and multi-tenant support
-- Event-driven architecture for custom workflows
-- Built-in analytics and monitoring APIs for email events, delivery, engagement, and system health
-- Role/permission-based authorization
-- Comprehensive test coverage and production readiness
-
-Perfect for building support ticketing systems, document workflows, email archiving, SaaS platforms, and more.
-
-# Inbounder - Laravel Mailgun Inbound Email Handler
-
-A Laravel package for handling Mailgun inbound emails with attachments and event-driven processing. Perfect for building support ticketing systems, document processing workflows, and email archiving solutions.
+A Laravel package for handling Mailgun inbound emails with attachments and event-driven processing.
 
 ## Features
 
-- ✅ **Mailgun Webhook Integration** - Handle inbound emails from Mailgun with proper webhook compliance
-- ✅ **Signature Verification** - Secure webhook signature validation with timestamp checking
-- ✅ **Attachment Processing** - Save and manage email attachments with size limits and organized storage
-- ✅ **Multiple Recipient Support** - Handle emails with multiple To, CC, and BCC recipients, with accurate recipient counting
-- ✅ **Event-Driven Architecture** - Extensible with Laravel events for custom processing
-- ✅ **User Authorization** - Role and permission-based access control with Spatie Laravel Permission
-- ✅ **Duplicate Prevention** - Prevent processing the same email twice using Message-ID
-- ✅ **Configurable Models** - Use your own User and Tenant models
-- ✅ **Multi-tenant Support** - Built-in tenant isolation and domain-based routing
-- ✅ **Comprehensive Testing** - Full test coverage with Pest and Testbench (91 tests, 228 assertions)
-- ✅ **Laravel 10/11 Compatible** - Works with latest Laravel versions
-- ✅ **MySQL & SQLite Compatible** - Tested with both database systems
-- ✅ **Production Ready** - Stable, well-tested, and ready for production use
+- 🔐 **Secure Webhook Validation** - Validates Mailgun webhook signatures
+- 📧 **Inbound Email Processing** - Handles incoming emails from Mailgun
+- 🎯 **Event-Driven Architecture** - Fires Laravel events for different email events
+- ⚡ **Job Queue Support** - Processes emails asynchronously via Laravel jobs
+- 🔧 **Configurable** - Easy configuration for different webhook endpoints
+- 🧪 **Fully Tested** - Comprehensive test coverage
 
 ## Installation
 
-### Via Composer
-
-```bash
-composer require fullstack/inbounder
-```
-
-### Manual Installation
-
-1. Clone or download this package
-2. Add to your `composer.json`:
-
-```json
-{
-    "repositories": [
-        {
-            "type": "path",
-            "url": "packages/redbird/inbounder"
-        }
-    ]
-}
-```
-
-3. Install the package:
+You can install the package via composer:
 
 ```bash
 composer require fullstack/inbounder
@@ -66,408 +23,181 @@ composer require fullstack/inbounder
 
 ### 1. Publish Configuration
 
-```bash
-php artisan vendor:publish --tag=inbounder-config
-```
-
-### 2. Publish Migrations
+Publish the configuration file:
 
 ```bash
-php artisan vendor:publish --tag=inbounder-migrations
-php artisan migrate
+php artisan vendor:publish --provider="Fullstack\Inbounder\InbounderServiceProvider" --tag="config"
 ```
 
-### 3. Environment Variables
-
-Add these to your `.env` file:
-
-```env
-# Mailgun Configuration
-MAILGUN_SIGNING_KEY=your-mailgun-signing-key
-MAILGUN_WEBHOOK_SIGNING_KEY=your-webhook-signing-key
-MAILGUN_DOMAIN=your-mailgun-domain
-
-# Inbounder Configuration
-INBOUNDER_MAX_ATTACHMENT_SIZE=20971520  # 20MB in bytes
-INBOUNDER_STORAGE_DISK=local
-INBOUNDER_STORAGE_PATH=inbound-emails/attachments
-INBOUNDER_REQUIRED_PERMISSION=can-send-emails
-INBOUNDER_REQUIRED_ROLE=tenant-admin
-INBOUNDER_DISPATCH_EVENTS=true
-INBOUNDER_LOG_EVENTS=true
-```
-
-## Usage
-
-### 1. Set Up Mailgun Route
-
-In your Mailgun dashboard, create a route that forwards emails to:
-
-```
-https://your-domain.com/api/mail/mailgun
-```
-
-### 2. Configure Custom Models (Optional)
-
-If you want to use your own User and Tenant models, update the config:
+This will create `config/inbounder.php` with the following structure:
 
 ```php
-// config/inbounder.php
-'models' => [
-    'user' => \App\Models\User::class,
-    'tenant' => \App\Models\Tenant::class,
-],
-```
+<?php
 
-### 3. User Authorization
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Mailgun Signing Secret
+    |--------------------------------------------------------------------------
+    |
+    | This is the signing secret from your Mailgun webhook configuration.
+    | You can find this in your Mailgun dashboard under Webhooks.
+    |
+    */
+    'signing_secret' => env('MAILGUN_SIGNING_SECRET'),
 
-Users must have the required permission and role to send emails. The package integrates with Spatie Laravel Permission:
-
-```php
-// Give a user permission to send emails
-$user->givePermissionTo('can-send-emails', 'tenant-admin');
-
-// Or make them a super admin
-$user->assignRole('super-admin');
-```
-
-### 4. Listen to Events
-
-The package dispatches events you can listen to:
-
-```php
-// In your EventServiceProvider
-protected $listen = [
-    \Fullstack\Inbounder\Events\InboundEmailReceived::class => [
-        \App\Listeners\LogInboundEmail::class,
-    ],
-    \Fullstack\Inbounder\Events\InboundEmailProcessed::class => [
-        \App\Listeners\NotifyEmailProcessed::class,
-    ],
-    \Fullstack\Inbounder\Events\InboundEmailFailed::class => [
-        \App\Listeners\HandleEmailFailure::class,
+    /*
+    |--------------------------------------------------------------------------
+    | Job Classes
+    |--------------------------------------------------------------------------
+    |
+    | Here you can configure which job classes should be dispatched for
+    | each webhook event type. The event type should be the key and the
+    | fully qualified class name should be the value.
+    |
+    */
+    'jobs' => [
+        // 'delivered' => \App\Jobs\HandleDeliveredEmail::class,
+        // 'bounced' => \App\Jobs\HandleBouncedEmail::class,
+        // 'complained' => \App\Jobs\HandleComplainedEmail::class,
     ],
 ];
 ```
 
-### 5. Access Email Data
+### 2. Environment Variables
 
-```php
-use Fullstack\Inbounder\Models\InboundEmail;
-use Fullstack\Inbounder\Models\InboundEmailAttachment;
+Add the following to your `.env` file:
 
-// Get all inbound emails
-$emails = InboundEmail::with('attachments')->get();
-
-// Get emails from a specific sender
-$emails = InboundEmail::where('from_email', 'user@example.com')->get();
-
-// Get emails for a specific tenant
-$emails = InboundEmail::where('tenant_id', 1)->get();
-
-// Get attachments for an email
-$email = InboundEmail::find(1);
-$attachments = $email->attachments;
-
-// Get attachment URL and formatted size
-$attachment = InboundEmailAttachment::find(1);
-$url = $attachment->url; // Full URL to the file
-$size = $attachment->formatted_size; // "2.5 MB"
-
-// Filter attachments by size or content type
-$largeAttachments = InboundEmailAttachment::where('size', '>', 1024 * 1024)->get();
-$pdfAttachments = InboundEmailAttachment::where('content_type', 'application/pdf')->get();
+```env
+MAILGUN_SIGNING_SECRET=your_mailgun_signing_secret_here
 ```
 
-### 6. Working with Multiple Recipients
+### 3. Database Migration
 
-The package supports emails with multiple recipients in the To, CC, and BCC fields:
+The package uses the `spatie/laravel-webhook-client` package which requires a migration. Run:
 
-```php
-use Fullstack\Inbounder\Models\InboundEmail;
-
-$email = InboundEmail::find(1);
-
-// Get all recipients (To, CC, BCC combined)
-$allRecipients = $email->getAllRecipients();
-// Returns: ['john@example.com', 'jane@example.com', 'cc@example.com', 'bcc@example.com']
-
-// Get the primary recipient (first To email or fallback to original to_email)
-$primaryRecipient = $email->getPrimaryRecipient();
-// Returns: 'john@example.com'
-
-// Check if a specific email is a recipient
-$isRecipient = $email->isRecipient('jane@example.com');
-// Returns: true
-
-// Get total recipient count (sum of all To, CC, and BCC)
-$totalCount = $email->getTotalRecipientCount();
-// Returns: 6 (for 2 To, 2 CC, 2 BCC)
-
-// Access individual recipient arrays
-$toEmails = $email->to_emails;     // ['john@example.com', 'jane@example.com']
-$ccEmails = $email->cc_emails;     // ['cc@example.com']
-$bccEmails = $email->bcc_emails;   // ['bcc@example.com']
-
-// The original single fields are still available for backward compatibility
-$originalToEmail = $email->to_email;  // 'john@example.com' (first To email)
-$originalToName = $email->to_name;    // 'John Doe'
-
-// The recipient_count column in the database is always kept in sync with the sum of all recipients, so you can filter or report on it reliably:
-$countFromDb = $email->recipient_count; // Always matches getTotalRecipientCount()
+```bash
+php artisan vendor:publish --provider="Spatie\WebhookClient\WebhookClientServiceProvider" --tag="migrations"
+php artisan migrate
 ```
 
-**Email Address Parsing:**
+## Usage
 
-The package automatically parses email addresses from various formats:
+### 1. Register Routes
+
+The package automatically registers a route macro. You can use it in your `routes/web.php` or `routes/api.php`:
 
 ```php
-// These formats are all supported:
-// "John Doe <john@example.com>"
-// "jane@example.com"
-// "John Doe <john@example.com>, Jane Smith <jane@example.com>"
-// "cc1@example.com, cc2@example.com"
+Route::inbounder('webhooks/mailgun');
 ```
 
-**Backward Compatibility:**
+This creates a POST route at `/webhooks/mailgun` that handles incoming Mailgun webhooks.
 
-The original `to_email` and `to_name` fields are maintained for backward compatibility. When `to_emails` is empty, the system falls back to the original `to_email` field.
+### 2. Create Job Classes
 
-## Configuration Options
-
-### Mailgun Settings
+Create job classes to handle different webhook events:
 
 ```php
-'mailgun' => [
-    'signing_key' => env('MAILGUN_SIGNING_KEY'),
-    'webhook_signing_key' => env('MAILGUN_WEBHOOK_SIGNING_KEY'),
-    'domain' => env('MAILGUN_DOMAIN'),
+<?php
+
+namespace App\Jobs;
+
+use Spatie\WebhookClient\Models\WebhookCall;
+
+class HandleDeliveredEmail
+{
+    public function __construct(public WebhookCall $webhookCall)
+    {
+    }
+
+    public function handle()
+    {
+        $payload = $this->webhookCall->payload;
+
+        // Process the delivered email
+        $emailData = $payload['event-data'];
+
+        // Your logic here...
+    }
+}
+```
+
+### 3. Configure Jobs
+
+Add your job classes to the configuration:
+
+```php
+// config/inbounder.php
+'jobs' => [
+    'delivered' => \App\Jobs\HandleDeliveredEmail::class,
+    'bounced' => \App\Jobs\HandleBouncedEmail::class,
+    'complained' => \App\Jobs\HandleComplainedEmail::class,
 ],
 ```
 
-### Model Settings
+### 4. Listen to Events
+
+The package fires Laravel events for each webhook event. You can listen to these events:
 
 ```php
-'models' => [
-    'user' => env('INBOUNDER_USER_MODEL', \App\Models\User::class),
-    'tenant' => env('INBOUNDER_TENANT_MODEL', \App\Models\Tenant::class),
-],
-```
-
-### Attachment Settings
-
-```php
-'attachments' => [
-    'max_file_size' => env('INBOUNDER_MAX_ATTACHMENT_SIZE', 20 * 1024 * 1024), // 20MB default
-    'storage_disk' => env('INBOUNDER_STORAGE_DISK', 'local'),
-    'storage_path' => env('INBOUNDER_STORAGE_PATH', 'inbound-emails/attachments'),
-],
-```
-
-### Authorization Settings
-
-```php
-'authorization' => [
-    'required_permission' => env('INBOUNDER_REQUIRED_PERMISSION', 'can-send-emails'),
-    'required_role' => env('INBOUNDER_REQUIRED_ROLE', 'tenant-admin'),
-    'super_admin_roles' => [
-        'super-admin',
+// In your EventServiceProvider
+protected $listen = [
+    'inbounder::delivered' => [
+        \App\Listeners\ProcessDeliveredEmail::class,
     ],
-],
+    'inbounder::bounced' => [
+        \App\Listeners\ProcessBouncedEmail::class,
+    ],
+];
 ```
 
-### Event Settings
+## Webhook Events
+
+The package handles the following Mailgun webhook events:
+
+- `delivered` - Email was successfully delivered
+- `bounced` - Email bounced
+- `complained` - Recipient marked email as spam
+- `unsubscribed` - Recipient unsubscribed
+- `opened` - Email was opened
+- `clicked` - Link in email was clicked
+
+## Multiple Webhook Endpoints
+
+You can configure multiple webhook endpoints with different signing secrets:
 
 ```php
-'events' => [
-    'dispatch_events' => env('INBOUNDER_DISPATCH_EVENTS', true),
-    'log_events' => env('INBOUNDER_LOG_EVENTS', true),
-],
+// config/inbounder.php
+'signing_secret' => env('MAILGUN_SIGNING_SECRET'),
+'signing_secret_secondary' => env('MAILGUN_SIGNING_SECRET_SECONDARY'),
 ```
 
-## API Endpoints
-
-### POST /api/webhooks/mailgun
-
-Handles incoming Mailgun webhooks with full Mailgun compliance.
-
-**Response Codes (Mailgun Compliant):**
-- `200` - Email processed successfully (Mailgun will not retry)
-- `406` - Processing failed or rejected (Mailgun will not retry)
-- Any other code - Mailgun will retry the webhook
-
-**Response Format:**
-```json
-{
-    "message": "Email has been successfully processed",
-    "email_id": 123
-}
-```
-
-**Error Response:**
-```json
-{
-    "error": "Signature is invalid."
-}
-```
-
-## Events
-
-### InboundEmailReceived
-
-Fired when an email is received and validated, before processing.
+Then register routes for each:
 
 ```php
-class InboundEmailReceived
-{
-    public array $emailData;      // Email metadata
-    public array $attachments;    // Attachment information
-    public array $requestData;    // Raw request data
-}
-```
-
-### InboundEmailProcessed
-
-Fired when an email is successfully processed and saved to the database.
-
-```php
-class InboundEmailProcessed
-{
-    public InboundEmail $email;   // The saved email model
-    public array $attachments;    // Processed attachment information
-}
-```
-
-### InboundEmailFailed
-
-Fired when email processing fails for any reason.
-
-```php
-class InboundEmailFailed
-{
-    public array $emailData;      // Available email data
-    public string $error;         // Error message
-    public array $requestData;    // Raw request data
-}
-```
-
-## Database Schema
-
-### InboundEmail Model
-
-```php
-// Main email record
-InboundEmail::create([
-    'message_id' => '<unique@example.com>',
-    'from_email' => 'sender@example.com',
-    'from_name' => 'John Doe',
-    'to_email' => 'recipient@example.com',
-    'to_name' => 'Jane Smith',
-    'to_emails' => ['recipient@example.com', 'secondary@example.com'],
-    'cc_emails' => ['cc1@example.com', 'cc2@example.com'],
-    'bcc_emails' => ['bcc@example.com'],
-    'subject' => 'Test Email',
-    'body_plain' => 'Plain text content',
-    'body_html' => '<p>HTML content</p>',
-    'stripped_text' => 'Stripped text content',
-    'stripped_html' => '<p>Stripped HTML</p>',
-    'stripped_signature' => 'Email signature',
-    'recipient_count' => 1,
-    'timestamp' => Carbon::now(),
-    'token' => 'webhook-token',
-    'signature' => 'webhook-signature',
-    'domain' => 'example.com',
-    'message_headers' => [['From', 'sender@example.com']],
-    'envelope' => ['from' => 'sender@example.com', 'to' => 'recipient@example.com'],
-    'attachments_count' => 2,
-    'size' => 1024000,
-    'sender_id' => 1,
-    'tenant_id' => 1,
-]);
-```
-
-### InboundEmailAttachment Model
-
-```php
-// Attachment record
-InboundEmailAttachment::create([
-    'inbound_email_id' => 1,
-    'filename' => 'document.pdf',
-    'content_type' => 'application/pdf',
-    'size' => 1024000,
-    'file_path' => 'inbound-emails/attachments/2024/01/15/abc123_document.pdf',
-    'original_name' => 'document.pdf',
-    'disposition' => 'attachment',
-]);
+Route::inbounder('webhooks/mailgun');
+Route::inbounder('webhooks/mailgun/secondary');
 ```
 
 ## Testing
 
-The package includes comprehensive tests with 91 test cases and 228 assertions, covering all major functionality:
+The package includes comprehensive tests. Run them with:
 
 ```bash
-# Run package tests
-composer test
-
-# Run tests with coverage
-./vendor/bin/pest --coverage
-
-# Run specific test file
-./vendor/bin/pest tests/Feature/InboundMailControllerTest.php
-
-# Run tests with MySQL (if configured)
-DB_CONNECTION=mysql ./vendor/bin/pest
+./vendor/bin/phpunit
 ```
-
-**Test Coverage:**
-- ✅ Webhook signature verification
-- ✅ Email processing with attachments
-- ✅ Multiple recipient handling
-- ✅ Event dispatching
-- ✅ Error handling and validation
-- ✅ User authorization
-- ✅ Database operations
-- ✅ File storage and management
 
 ## Security
 
-- **Signature Verification** - All webhooks are verified using Mailgun's signing key
-- **Timestamp Validation** - Prevents replay attacks (5-minute window)
-- **User Authorization** - Only authorized users can send emails
-- **File Size Limits** - Configurable attachment size limits (20MB default)
-- **Duplicate Prevention** - Prevents processing the same email twice using Message-ID
-- **Tenant Isolation** - Multi-tenant support with proper data separation
-- **Input Validation** - Comprehensive validation of all incoming data
-- **Error Handling** - Proper error responses that don't expose sensitive information
+The package validates webhook signatures to ensure requests are coming from Mailgun. Make sure to:
 
-## Use Cases
-
-This package is perfect for:
-
-- **Support Ticketing Systems** - Convert emails to tickets with attachments
-- **Document Processing Workflows** - Process email attachments automatically
-- **Email Archiving** - Store all inbound emails with attachments
-- **Multi-tenant SaaS** - Handle emails for multiple tenants
-- **Customer Service** - Route emails to appropriate agents
-- **Compliance & Auditing** - Maintain email records for compliance
-- **Email Marketing** - Process inbound replies and feedback
-- **Workflow Automation** - Trigger business processes based on email content
-
-## Database Compatibility
-
-The package is tested and compatible with:
-- **MySQL 8.0+** - Full support with JSON columns for multiple recipients
-- **SQLite** - Compatible for development and testing
-- **PostgreSQL** - Should work with JSON columns (not fully tested)
+1. Keep your signing secret secure
+2. Use HTTPS in production
+3. Validate webhook signatures (handled automatically)
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests
-5. Ensure all tests pass
-6. Submit a pull request
+Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
 ## License
 
@@ -475,14 +205,4 @@ The MIT License (MIT). Please see [License File](LICENSE.md) for more informatio
 
 ## Support
 
-For support, please open an issue on GitHub or contact the Fullstack team.
-
-## Changelog
-
-### v1.0.0
-- Initial release with Mailgun webhook support
-- Attachment processing and storage
-- Multiple recipient support (To, CC, BCC)
-- Event-driven architecture
-- Comprehensive test suite (91 tests)
-- Production-ready with MySQL and SQLite compatibility
+If you encounter any issues or have questions, please open an issue on GitHub.

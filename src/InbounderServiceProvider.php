@@ -2,48 +2,36 @@
 
 namespace Fullstack\Inbounder;
 
-use Illuminate\Routing\Router;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 
 class InbounderServiceProvider extends ServiceProvider
 {
     /**
-     * Register services.
+     * Boot application services.
+     *
+     * @return void
      */
-    public function register(): void
+    public function boot()
     {
-        $this->mergeConfigFrom(
-            __DIR__.'/../config/inbounder.php',
-            'inbounder'
-        );
+        if ($this->app->runningInConsole()) {
+            $this->publishes([
+                __DIR__.'/../config/inbounder.php' => config_path('inbounder.php'),
+            ], 'config');
+        }
+
+        Route::macro('inbounder', function ($url) {
+            return Route::post($url, '\Fullstack\Inbounder\MailgunWebhooksController');
+        });
     }
 
     /**
-     * Bootstrap services.
+     * Register application services.
+     *
+     * @return void
      */
-    public function boot(): void
+    public function register()
     {
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
-
-        $this->publishes([
-            __DIR__.'/../config/inbounder.php' => config_path('inbounder.php'),
-        ], 'inbounder-config');
-
-        $this->publishes([
-            __DIR__.'/../database/migrations' => database_path('migrations'),
-        ], 'inbounder-migrations');
-
-        $this->loadRoutes();
-    }
-
-    /**
-     * Load package routes.
-     */
-    protected function loadRoutes(): void
-    {
-        Route::middleware('api')
-            ->prefix('api/webhooks/mailgun')
-            ->group(__DIR__.'/../routes/api.php');
+        $this->mergeConfigFrom(__DIR__.'/../config/inbounder.php', 'inbounder');
     }
 }

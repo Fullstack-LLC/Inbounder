@@ -1,0 +1,83 @@
+<?php
+
+return [
+    /*
+    |--------------------------------------------------------------------------
+    | Mailgun Signing Secret
+    |--------------------------------------------------------------------------
+    |
+    | This is the signing secret from your Mailgun webhook configuration.
+    | You can find this in your Mailgun dashboard under Webhooks.
+    |
+    */
+    'signing_secret' => env('MAILGUN_SIGNING_SECRET'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Additional Signing Secrets
+    |--------------------------------------------------------------------------
+    |
+    | You can configure multiple signing secrets for different webhook endpoints.
+    | Use these for different Mailgun domains or applications.
+    |
+    */
+    'signing_secret_secondary' => env('MAILGUN_SIGNING_SECRET_SECONDARY'),
+    'signing_secret_tertiary' => env('MAILGUN_SIGNING_SECRET_TERTIARY'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Job Classes
+    |--------------------------------------------------------------------------
+    |
+    | Here you can configure which job classes should be dispatched for
+    | each webhook event type. The event type should be the key and the
+    | fully qualified class name should be the value.
+    |
+    | Supported event types:
+    | - delivered: Email was successfully delivered
+    | - bounced: Email bounced
+    | - complained: Recipient marked email as spam
+    | - unsubscribed: Recipient unsubscribed
+    | - opened: Email was opened
+    | - clicked: Link in email was clicked
+    |
+    */
+    'jobs' => [
+        // 'delivered' => \App\Jobs\HandleDeliveredEmail::class,
+        // 'bounced' => \App\Jobs\HandleBouncedEmail::class,
+        // 'complained' => \App\Jobs\HandleComplainedEmail::class,
+        // 'unsubscribed' => \App\Jobs\HandleUnsubscribedEmail::class,
+        // 'opened' => \App\Jobs\HandleOpenedEmail::class,
+        // 'clicked' => \App\Jobs\HandleClickedEmail::class,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Webhook Processing
+    |--------------------------------------------------------------------------
+    |
+    | Configure how webhooks should be processed.
+    |
+    */
+    'process_webhook_job' => \Fullstack\Inbounder\ProcessMailgunWebhookJob::class,
+
+    /*
+    |--------------------------------------------------------------------------
+    | Queue Configuration
+    |--------------------------------------------------------------------------
+    |
+    | Configure which queue should be used for processing webhook jobs.
+    |
+    */
+    'queue' => env('INBOUNDER_QUEUE', 'default'),
+
+    /*
+    |--------------------------------------------------------------------------
+    | Logging
+    |--------------------------------------------------------------------------
+    |
+    | Configure logging for webhook processing.
+    |
+    */
+    'log_webhook_calls' => env('INBOUNDER_LOG_WEBHOOK_CALLS', true),
+];
