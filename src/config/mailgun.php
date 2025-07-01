@@ -118,7 +118,7 @@ return [
         /** Whether to store webhook events in the database. */
         'webhooks' => [
             /** Whether to store webhook events in the database. */
-            'enabled' => false,
+            'enabled' => true,
 
             /** The model to use for storing webhook events. */
             'model' => Inbounder\Models\MailgunEvent::class,
@@ -137,14 +137,14 @@ return [
 
         /** Whether to store inbound emails in the database. */
         'inbound' => [
-            'enabled' => false,
+            'enabled' => true,
             'model' => Inbounder\Models\MailgunInboundEmail::class,
         ],
 
         /** Whether to store outbound emails in the database. */
         'outbound' => [
             /** Whether to store outbound emails in the database. */
-            'enabled' => false,
+            'enabled' => true,
 
             /** The model to use for storing outbound emails. */
             'model' => Inbounder\Models\MailgunOutboundEmail::class,
