@@ -64,7 +64,7 @@ class MailgunServiceProvider extends ServiceProvider
         $this->registerMiddleware();
         $this->registerConfig();
         $this->registerMailer();
-        // $this->loadMigrations(); // Commented out to prevent auto-loading migrations
+        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
         $this->registerCommands();
     }
 
@@ -140,14 +140,6 @@ class MailgunServiceProvider extends ServiceProvider
 
         // Set default from address from Mailgun config
         $config->set('mail.from', config('mailgun.outbound.default_from'));
-    }
-
-    /**
-     * Load the Mailgun migrations.
-     */
-    private function loadMigrations(): void
-    {
-        $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
     }
 
     /**
