@@ -11,6 +11,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\Mail;
 use Inbounder\Mail\TemplatedEmail;
+use Inbounder\Models\MailgunOutboundEmail;
+use Carbon\Carbon;
 
 /**
  * Job to send a single templated email to a recipient.
@@ -45,5 +47,18 @@ class SendTemplatedEmailJob implements ShouldQueue
     {
         $mailable = new TemplatedEmail($this->templateSlug, $this->variables, $this->options);
         Mail::to($this->recipient)->send($mailable);
+
+        // Log outbound email
+        MailgunOutboundEmail::create([
+            'recipient' => $this->recipient,
+            'template_name' => $mailable->template->slug,
+            'subject' => $mailable->subject,
+            'sent_at' => Carbon::now(),
+            'status' => 'sent',
+            'metadata' => [
+                'variables' => $this->variables,
+                'options' => $this->options,
+            ],
+        ]);
     }
 }
