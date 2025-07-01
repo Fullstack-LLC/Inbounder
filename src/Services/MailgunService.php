@@ -274,8 +274,17 @@ class MailgunService
         $this->dispatchWebhookEvent($webhookData);
 
         switch ($webhookData['event']) {
+            case 'accepted':
+                $this->handleAccepted($webhookData);
+                break;
             case 'delivered':
                 $this->handleDelivered($webhookData);
+                break;
+            case 'rejected':
+                $this->handleRejected($webhookData);
+                break;
+            case 'dropped':
+                $this->handleDropped($webhookData);
                 break;
             case 'bounced':
                 $this->handleBounced($webhookData);
@@ -291,6 +300,9 @@ class MailgunService
                 break;
             case 'clicked':
                 $this->handleClicked($webhookData);
+                break;
+            case 'stored':
+                $this->handleStored($webhookData);
                 break;
             default:
                 Log::info('Unhandled webhook event', ['event' => $webhookData['event']]);
@@ -376,6 +388,58 @@ class MailgunService
             'message_id' => $webhookData['message_id'],
             'recipient' => $webhookData['recipient'],
             'user_agent' => $webhookData['user_agent'],
+        ]);
+    }
+
+    /**
+     * Handle accepted event.
+     *
+     * @param  array  $webhookData  The parsed webhook data.
+     */
+    private function handleAccepted(array $webhookData): void
+    {
+        Log::info('Email accepted', [
+            'message_id' => $webhookData['message_id'],
+            'recipient' => $webhookData['recipient'],
+        ]);
+    }
+
+    /**
+     * Handle rejected event.
+     *
+     * @param  array  $webhookData  The parsed webhook data.
+     */
+    private function handleRejected(array $webhookData): void
+    {
+        Log::warning('Email rejected', [
+            'message_id' => $webhookData['message_id'],
+            'recipient' => $webhookData['recipient'],
+        ]);
+    }
+
+    /**
+     * Handle dropped event.
+     *
+     * @param  array  $webhookData  The parsed webhook data.
+     */
+    private function handleDropped(array $webhookData): void
+    {
+        Log::warning('Email dropped', [
+            'message_id' => $webhookData['message_id'],
+            'recipient' => $webhookData['recipient'],
+        ]);
+    }
+
+    /**
+     * Handle stored event.
+     *
+     * @param  array  $webhookData  The parsed webhook data.
+     */
+    private function handleStored(array $webhookData): void
+    {
+        Log::info('Email stored', [
+            'message_id' => $webhookData['message_id'],
+            'recipient' => $webhookData['recipient'],
         ]);
     }
 
