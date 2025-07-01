@@ -16,8 +16,6 @@ return new class extends Migration
             $table->foreignId('distribution_list_id')->constrained('distribution_lists')->onDelete('cascade');
             $table->unsignedBigInteger('user_id')->nullable()->index();
             $table->string('email');
-            $table->string('first_name')->nullable();
-            $table->string('last_name')->nullable();
             $table->boolean('is_active')->default(true);
             $table->json('metadata')->nullable(); // Additional subscriber metadata
             $table->timestamps();
