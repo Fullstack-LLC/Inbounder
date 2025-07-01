@@ -169,6 +169,29 @@ class MailgunService
             }
         }
 
+        // Ensure JSON fields are properly formatted
+        $jsonFields = [
+            'delivery_status', 'envelope', 'flags', 'tags', 'campaigns', 'user_variables'
+        ];
+
+        foreach ($jsonFields as $field) {
+            if (isset($data[$field])) {
+                // If it's already a string, try to decode it to ensure it's valid JSON
+                if (is_string($data[$field])) {
+                    $decoded = json_decode($data[$field], true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        // It's valid JSON, keep it as is
+                        continue;
+                    }
+                }
+
+                // If it's an array or invalid JSON string, encode it
+                if (is_array($data[$field]) || !is_string($data[$field])) {
+                    $data[$field] = json_encode($data[$field]);
+                }
+            }
+        }
+
         return $data;
     }
 
