@@ -42,6 +42,7 @@ class DistributionList extends Model
         'is_active',
         'category',
         'metadata',
+        'default_template_id',
     ];
 
     /**
@@ -241,5 +242,15 @@ class DistributionList extends Model
             'inactive_subscribers' => $total - $active,
             'subscription_rate' => $total > 0 ? round(($active / $total) * 100, 2) : 0,
         ];
+    }
+
+    public function defaultTemplate()
+    {
+        return $this->belongsTo(\Inbounder\Models\EmailTemplate::class, 'default_template_id');
+    }
+
+    public function getDefaultTemplate()
+    {
+        return $this->defaultTemplate;
     }
 }

@@ -212,10 +212,14 @@ class DistributionListService
      */
     public function sendCampaignToList(
         DistributionList $list,
-        string $templateSlug,
+        string $templateSlug = null,
         array $variables = [],
         array $options = []
     ): array {
+        $templateSlug = $templateSlug ?: optional($list->getDefaultTemplate())->slug;
+        if (!$templateSlug) {
+            throw new \InvalidArgumentException('No template slug provided and no default template set for this list.');
+        }
         $subscribers = $this->getSubscribers($list, true);
         $results = [
             'total_subscribers' => $subscribers->count(),
@@ -223,24 +227,19 @@ class DistributionListService
             'emails_failed' => 0,
             'errors' => [],
         ];
-
         $emailDispatcher = app(TemplatedEmailJobDispatcher::class);
-
         foreach ($subscribers as $subscriber) {
             try {
-                // Prepare subscriber-specific variables
                 $subscriberVariables = array_merge($variables, [
                     'name' => $subscriber->getFullName(),
                     'email' => $subscriber->email,
                 ]);
-
                 $emailDispatcher->sendToOne(
                     $subscriber->email,
                     $templateSlug,
                     $subscriberVariables,
                     $options
                 );
-
                 $results['emails_sent']++;
             } catch (\Exception $e) {
                 $results['emails_failed']++;
@@ -250,7 +249,6 @@ class DistributionListService
                 ];
             }
         }
-
         return $results;
     }
 

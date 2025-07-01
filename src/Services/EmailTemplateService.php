@@ -134,12 +134,15 @@ class EmailTemplateService
                 }
             }
         }
-        // If still missing required variables after applying defaults, throw error
         $stillMissing = array_filter($required, fn($var) => !array_key_exists($var, $variables));
         if (!empty($stillMissing)) {
             throw new \InvalidArgumentException('Missing required variables: '.implode(', ', $stillMissing));
         }
-        return strtr($template->content, array_map(fn($v) => (string) $v, $variables));
+        $content = $template->html_content ?? $template->text_content;
+        if (!$content) {
+            throw new \InvalidArgumentException('Template has no html_content or text_content.');
+        }
+        return strtr($content, array_map(fn($v) => (string) $v, $variables));
     }
 
     /**
