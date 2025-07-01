@@ -20,9 +20,9 @@ return new class extends Migration
             $table->json('metadata')->nullable(); // Additional subscriber metadata
             $table->timestamps();
 
-            $table->unique(['distribution_list_id', 'email']);
-            $table->index(['distribution_list_id', 'is_active']);
-            $table->index('email');
+            $table->unique(['distribution_list_id', 'email'], 'dl_subscribers_unique');
+            $table->index(['distribution_list_id', 'is_active'], 'dl_subscribers_active_idx');
+            $table->index('email', 'dl_subscribers_email_idx');
         });
     }
 
