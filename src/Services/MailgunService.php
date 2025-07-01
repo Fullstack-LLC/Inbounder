@@ -38,8 +38,9 @@ class MailgunService
     {
         try {
             Log::info('Mailgun inbound webhook received', [
-                'headers' => $request->headers->all(),
-                'body' => $request->all(),
+                'from' => $request->input('from'),
+                'to' => $request->input('recipient') ?? $request->input('To') ?? $request->input('to'),
+                'subject' => $request->input('subject'),
             ]);
 
             $emailData = $this->parseInboundEmail($request);
