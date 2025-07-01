@@ -11,11 +11,27 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <testsuite name="Inbounder">
+            <directory>app/Inbounder/Tests</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>
             <directory>app</directory>
         </include>
+        <exclude>
+            <file>app/Models/User.php</file>
+            <file>app/Http/Controllers/Controller.php</file>
+            <file>app/Providers/AppServiceProvider.php</file>
+            <file>app/Inbounder/Models/MailgunEvent.php</file>
+            <file>app/Inbounder/Models/MailgunInboundEmail.php</file>
+            <file>app/Inbounder/Examples/SendEmailExample.php</file>
+            <directory suffix=".php">app/Inbounder/Console/Commands</directory>
+            <file>app/Inbounder/Exceptions/MailgunTrackingException.php</file>
+            <directory suffix=".php">app/Inbounder/database/seeders</directory>
+            <directory suffix=".php">tests</directory>
+            <directory suffix=".php">app/Inbounder/Tests</directory>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>

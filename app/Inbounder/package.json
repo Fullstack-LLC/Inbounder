@@ -1,0 +1,14 @@
+{
+    "name": "fullstack-inbounder",
+    "version": "1.0.0",
+    "description": "Laravel Mailgun integration package",
+    "private": true,
+    "scripts": {
+        "test": "php vendor/bin/phpunit",
+        "test-coverage": "php vendor/bin/phpunit --coverage-html coverage",
+        "pint": "vendor/bin/pint",
+        "pint-fix": "vendor/bin/pint --test"
+    },
+    "devDependencies": {},
+    "dependencies": {}
+}
