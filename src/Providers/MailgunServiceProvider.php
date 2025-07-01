@@ -64,7 +64,7 @@ class MailgunServiceProvider extends ServiceProvider
         $this->registerMiddleware();
         $this->registerConfig();
         $this->registerMailer();
-        $this->loadMigrations();
+        // $this->loadMigrations(); // Commented out to prevent auto-loading migrations
         $this->registerCommands();
     }
 
