@@ -211,7 +211,7 @@ class MailgunService
             'message_id' => $emailData['message_id'],
         ]);
 
-        if (config('mailgun.database.inbound.enabled', false)) {
+        if (config('mailgun.database.inbound.enabled', true)) {
             $modelClass = config('mailgun.database.inbound.model');
             $modelClass::create([
                 'from' => $emailData['from'],
@@ -268,7 +268,7 @@ class MailgunService
             }
         }
 
-        if (config('mailgun.database.webhooks.enabled', false)) {
+        if (config('mailgun.database.webhooks.enabled', true)) {
             $this->storeWebhookEvent($webhookData);
         }
 
