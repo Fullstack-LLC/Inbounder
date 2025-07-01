@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('distribution_list_subscribers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('distribution_list_id')->constrained('distribution_lists')->onDelete('cascade');
+            $table->unsignedBigInteger('user_id')->nullable()->index();
             $table->string('email');
             $table->string('first_name')->nullable();
             $table->string('last_name')->nullable();
