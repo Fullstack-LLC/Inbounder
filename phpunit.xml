@@ -3,6 +3,9 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
+         processIsolation="false"
+         stopOnFailure="false"
+         cacheDirectory=".phpunit.cache"
 >
     <testsuites>
         <testsuite name="Unit">
@@ -11,37 +14,23 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
-        <testsuite name="Inbounder">
-            <directory>app/Inbounder/Tests</directory>
-        </testsuite>
     </testsuites>
     <source>
         <include>
-            <directory>app</directory>
+            <directory suffix=".php">src</directory>
         </include>
         <exclude>
-            <file>app/Models/User.php</file>
-            <file>app/Http/Controllers/Controller.php</file>
-            <file>app/Providers/AppServiceProvider.php</file>
-            <file>app/Inbounder/Models/MailgunEvent.php</file>
-            <file>app/Inbounder/Models/MailgunInboundEmail.php</file>
-            <file>app/Inbounder/Examples/SendEmailExample.php</file>
-            <directory suffix=".php">app/Inbounder/Console/Commands</directory>
-            <file>app/Inbounder/Exceptions/MailgunTrackingException.php</file>
-            <directory suffix=".php">app/Inbounder/database/seeders</directory>
-            <directory suffix=".php">tests</directory>
-            <directory suffix=".php">app/Inbounder/Tests</directory>
+            <directory>tests</directory>
+            <directory>vendor</directory>
         </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
-        <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
-        <env name="CACHE_STORE" value="array"/>
+        <env name="CACHE_DRIVER" value="array"/>
         <env name="DB_CONNECTION" value="sqlite"/>
         <env name="DB_DATABASE" value=":memory:"/>
         <env name="MAIL_MAILER" value="array"/>
-        <env name="PULSE_ENABLED" value="false"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
