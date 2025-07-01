@@ -50,6 +50,7 @@ class SendTemplatedEmailJob implements ShouldQueue
 
         // Log outbound email
         MailgunOutboundEmail::create([
+            'message_id' => uniqid('outbound_' . time() . '_', true),
             'recipient' => $this->recipient,
             'template_name' => $mailable->template->slug,
             'subject' => $mailable->subject,
