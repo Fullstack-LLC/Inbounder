@@ -102,7 +102,7 @@ class MailgunService
     {
         return [
             'from' => $request->input('from'),
-            'to' => $request->input('to'),
+            'to' => $request->input('To') ?? $request->input('to') ?? $request->input('recipient'),
             'subject' => $request->input('subject'),
             'body_plain' => $request->input('body-plain'),
             'body_html' => $request->input('body-html'),
@@ -118,6 +118,7 @@ class MailgunService
             'stripped_signature' => $request->input('stripped-signature'),
             'message_headers' => $request->input('message-headers'),
             'content_id_map' => $request->input('content-id-map'),
+            'raw_data' => $request->all(),
         ];
     }
 
