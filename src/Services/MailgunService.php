@@ -71,10 +71,18 @@ class MailgunService
     public function handleWebhook(Request $request): array
     {
         try {
-            Log::info('Mailgun webhook received', [
-                'headers' => $request->headers->all(),
-                'body' => $request->all(),
-            ]);
+            if (config('app.debug') || config('mailgun.logging.level') === 'debug') {
+                Log::info('Mailgun webhook received', [
+                    'headers' => $request->headers->all(),
+                    'body' => $request->all(),
+                ]);
+            } else {
+                Log::info('Mailgun webhook received', [
+                    'event' => $request->input('event-data.event'),
+                    'message_id' => $request->input('event-data.message.headers.message-id'),
+                    'recipient' => $request->input('event-data.recipient'),
+                ]);
+            }
 
             $webhookData = $this->parseWebhookData($request);
             $this->processWebhook($webhookData);
@@ -211,7 +219,7 @@ class MailgunService
             'message_id' => $emailData['message_id'],
         ]);
 
-        if (config('mailgun.database.inbound.enabled', true)) {
+        if (config('mailgun.database.inbound.enabled', false)) {
             $modelClass = config('mailgun.database.inbound.model');
             $modelClass::create([
                 'from' => $emailData['from'],
@@ -268,7 +276,7 @@ class MailgunService
             }
         }
 
-        if (config('mailgun.database.webhooks.enabled', true)) {
+        if (config('mailgun.database.webhooks.enabled', false)) {
             $this->storeWebhookEvent($webhookData);
         }
 
