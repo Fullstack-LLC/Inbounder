@@ -168,6 +168,7 @@ class MailgunServiceProvider extends ServiceProvider
                 \Inbounder\Console\Commands\DistributionLists\RemoveSubscribers::class,
                 \Inbounder\Console\Commands\DistributionLists\SendCampaign::class,
                 \Inbounder\Console\Commands\DistributionLists\ManageSubscribers::class,
+                \Inbounder\Console\Commands\ProcessInboundEmailsCommand::class,
             ]);
         }
     }
