@@ -166,8 +166,9 @@ class EmailTemplate extends Model
     private function renderContent(string $content, array $variables = []): string
     {
         foreach ($variables as $key => $value) {
-            $content = str_replace('{{'.$key.'}}', $value, $content);
-            $content = str_replace('{{ '.$key.' }}', $value, $content);
+            $stringValue = (string) $value;
+            $content = str_replace('{{'.$key.'}}', $stringValue, $content);
+            $content = str_replace('{{ '.$key.' }}', $stringValue, $content);
         }
 
         return $content;
