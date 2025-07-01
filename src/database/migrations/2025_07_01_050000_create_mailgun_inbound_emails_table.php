@@ -23,8 +23,8 @@ return new class extends Migration {
             $table->text('stripped_text')->nullable();
             $table->text('stripped_html')->nullable();
             $table->text('stripped_signature')->nullable();
-            $table->json('message_headers')->nullable();
-            $table->json('content_id_map')->nullable();
+            $table->text('message_headers')->nullable();
+            $table->text('content_id_map')->nullable();
             $table->json('raw_data')->nullable();
             $table->timestamp('processed_at')->nullable();
             $table->timestamps();
