@@ -1,0 +1,31 @@
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+class CreateMailgunInboundEmailsTable extends Migration
+{
+    public function up()
+    {
+        Schema::create('mailgun_inbound_emails', function (Blueprint $table) {
+            $table->id();
+            $table->unsignedBigInteger('timestamp')->nullable();
+            $table->string('token')->nullable();
+            $table->string('signature')->nullable();
+            $table->string('recipient')->nullable();
+            $table->string('sender')->nullable();
+            $table->text('stripped_text')->nullable();
+            $table->text('stripped_html')->nullable();
+            $table->text('stripped_signature')->nullable();
+            $table->json('message_headers')->nullable();
+            $table->json('content_id_map')->nullable();
+            $table->json('raw_data')->nullable();
+            $table->timestamp('processed_at')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down()
+    {
+        Schema::dropIfExists('mailgun_inbound_emails');
+    }
+}

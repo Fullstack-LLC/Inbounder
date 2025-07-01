@@ -17,6 +17,7 @@ use Inbounder\Events\DistributionListUpdated;
  * @property int $id
  * @property string $name
  * @property string $slug
+ * @property string|null $email_address
  * @property string|null $description
  * @property bool $is_active
  * @property string|null $category
@@ -36,6 +37,7 @@ class DistributionList extends Model
     protected $fillable = [
         'name',
         'slug',
+        'email_address',
         'description',
         'is_active',
         'category',
