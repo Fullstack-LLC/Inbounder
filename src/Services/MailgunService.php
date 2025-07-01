@@ -129,7 +129,7 @@ class MailgunService
      */
     private function parseWebhookData(Request $request): array
     {
-        return [
+        $data = [
             'event' => $request->input('event-data.event'),
             'timestamp' => $request->input('event-data.timestamp'),
             'message_id' => $request->input('event-data.message.headers.message-id'),
@@ -155,6 +155,21 @@ class MailgunService
             'campaigns' => $request->input('event-data.campaigns'),
             'user_variables' => $request->input('event-data.user-variables'),
         ];
+
+        // Ensure string fields are actually strings
+        $stringFields = [
+            'event', 'message_id', 'recipient', 'domain', 'ip', 'country', 'region',
+            'city', 'user_agent', 'device_type', 'client_type', 'client_name',
+            'client_os', 'reason', 'code', 'error', 'severity'
+        ];
+
+        foreach ($stringFields as $field) {
+            if (isset($data[$field]) && is_array($data[$field])) {
+                $data[$field] = json_encode($data[$field]);
+            }
+        }
+
+        return $data;
     }
 
     /**
@@ -394,29 +409,29 @@ class MailgunService
         try {
             $modelClass = config('mailgun.database.webhooks.model');
             $modelClass::create([
-                'event_type' => $webhookData['event'],
-                'message_id' => $webhookData['message_id'],
-                'recipient' => $webhookData['recipient'],
-                'domain' => $webhookData['domain'],
-                'ip' => $webhookData['ip'],
-                'country' => $webhookData['country'],
-                'region' => $webhookData['region'],
-                'city' => $webhookData['city'],
-                'user_agent' => $webhookData['user_agent'],
-                'device_type' => $webhookData['device_type'],
-                'client_type' => $webhookData['client_type'],
-                'client_name' => $webhookData['client_name'],
-                'client_os' => $webhookData['client_os'],
-                'reason' => $webhookData['reason'],
-                'code' => $webhookData['code'],
-                'error' => $webhookData['error'],
-                'severity' => $webhookData['severity'],
-                'delivery_status' => $webhookData['delivery_status'],
-                'envelope' => $webhookData['envelope'],
-                'flags' => $webhookData['flags'],
-                'tags' => $webhookData['tags'],
-                'campaigns' => $webhookData['campaigns'],
-                'user_variables' => $webhookData['user_variables'],
+                'event_type' => $webhookData['event'] ?? null,
+                'message_id' => $webhookData['message_id'] ?? null,
+                'recipient' => $webhookData['recipient'] ?? null,
+                'domain' => $webhookData['domain'] ?? null,
+                'ip' => $webhookData['ip'] ?? null,
+                'country' => $webhookData['country'] ?? null,
+                'region' => $webhookData['region'] ?? null,
+                'city' => $webhookData['city'] ?? null,
+                'user_agent' => $webhookData['user_agent'] ?? null,
+                'device_type' => $webhookData['device_type'] ?? null,
+                'client_type' => $webhookData['client_type'] ?? null,
+                'client_name' => $webhookData['client_name'] ?? null,
+                'client_os' => $webhookData['client_os'] ?? null,
+                'reason' => $webhookData['reason'] ?? null,
+                'code' => $webhookData['code'] ?? null,
+                'error' => $webhookData['error'] ?? null,
+                'severity' => $webhookData['severity'] ?? null,
+                'delivery_status' => $webhookData['delivery_status'] ?? null,
+                'envelope' => $webhookData['envelope'] ?? null,
+                'flags' => $webhookData['flags'] ?? null,
+                'tags' => $webhookData['tags'] ?? null,
+                'campaigns' => $webhookData['campaigns'] ?? null,
+                'user_variables' => $webhookData['user_variables'] ?? null,
                 'event_timestamp' => $webhookData['timestamp'] ? date('Y-m-d H:i:s', (int) $webhookData['timestamp']) : null,
                 'raw_data' => $webhookData,
             ]);
