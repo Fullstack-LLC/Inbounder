@@ -54,7 +54,16 @@ class VerifyMailgunWebhook
         // Try to get signature parameters from both flat and nested structures
         $timestamp = $request->input('timestamp') ?? $request->input('signature.timestamp');
         $token = $request->input('token') ?? $request->input('signature.token');
-        $signature = $request->input('signature') ?? $request->input('signature.signature');
+
+        // Handle signature - could be a string (flat) or an object (nested)
+        $signatureInput = $request->input('signature');
+        if (is_array($signatureInput)) {
+            // Nested structure: signature is an object with timestamp, token, signature
+            $signature = $signatureInput['signature'] ?? null;
+        } else {
+            // Flat structure: signature is a string
+            $signature = $signatureInput;
+        }
 
         if (! $timestamp || ! $token || ! $signature) {
             Log::warning('Mailgun webhook missing required parameters', [
