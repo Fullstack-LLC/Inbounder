@@ -27,9 +27,9 @@ class MailgunController
      */
     public function inbound(Request $request): \Illuminate\Http\JsonResponse
     {
-        $result = $this->mailgunService->handleInbound($request);
+        $this->mailgunService->handleInbound($request);
 
-        return response()->json($result, 200);
+        return response()->json(['message' => 'success'], 200);
     }
 
     /**
@@ -40,8 +40,8 @@ class MailgunController
      */
     public function webhook(Request $request): \Illuminate\Http\JsonResponse
     {
-        $result = $this->mailgunService->handleWebhook($request);
+        $this->mailgunService->handleWebhook($request);
 
-        return response()->json($result, 200);
+        return response()->json(['message' => 'success'], 200);
     }
 }
