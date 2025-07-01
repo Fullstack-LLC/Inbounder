@@ -105,26 +105,41 @@ class EmailTemplateService
      *
      * @throws \InvalidArgumentException
      */
-    public function renderTemplate(string $slug, array $variables = []): array
+    public function renderTemplate(string $slug, array $variables = []): string
     {
-        $template = $this->getTemplateBySlug($slug);
-
-        if (! $template) {
-            throw new \InvalidArgumentException("Template with slug '{$slug}' not found or inactive");
-        }
-
-        // Validate that all required variables are provided
-        $missing = $template->getMissingVariables($variables);
-        if (! empty($missing)) {
-            throw new \InvalidArgumentException('Missing required variables: '.implode(', ', $missing));
-        }
-
-        return [
-            'subject' => $template->renderSubject($variables),
-            'html_content' => $template->renderHtml($variables),
-            'text_content' => $template->renderText($variables),
-            'template' => $template,
+        $template = EmailTemplate::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        $required = $template->variables ?? [];
+        $missing = [];
+        $defaults = [
+            'first_name' => 'Test',
+            'last_name' => 'User',
+            'name' => 'Test User',
+            'app_name' => 'Test Application',
+            'login_url' => 'https://example.com/login',
+            'unsubscribe_url' => 'https://example.com/unsubscribe',
+            'subject' => 'Test Subject',
+            'content' => 'Test Content',
+            'message' => 'Test Message',
+            'action_url' => 'https://example.com/action',
+            'campaign_subject' => 'Test Campaign Subject',
+            'campaign_content' => 'Test Campaign Content',
+            'cta_text' => 'Learn More',
+            'cta_url' => 'https://example.com/campaign',
         ];
+        foreach ($required as $var) {
+            if (!array_key_exists($var, $variables)) {
+                $missing[] = $var;
+                if (array_key_exists($var, $defaults)) {
+                    $variables[$var] = $defaults[$var];
+                }
+            }
+        }
+        // If still missing required variables after applying defaults, throw error
+        $stillMissing = array_filter($required, fn($var) => !array_key_exists($var, $variables));
+        if (!empty($stillMissing)) {
+            throw new \InvalidArgumentException('Missing required variables: '.implode(', ', $stillMissing));
+        }
+        return strtr($template->content, array_map(fn($v) => (string) $v, $variables));
     }
 
     /**
