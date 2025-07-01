@@ -44,18 +44,23 @@ class ProcessInboundEmailsJob implements ShouldQueue
                     }
 
                     if ($template) {
-                        $variables = [
-                            'name' => $recipient,
-                            'first_name' => explode('@', $recipient)[0],
-                            'app_name' => config('app.name', 'Our App'),
-                        ];
+                        // Get all active subscribers of this list
+                        $subscribers = $list->activeSubscribers()->get();
 
-                        SendTemplatedEmailJob::dispatch($recipient, $template->slug, $variables, []);
-                        Log::info('Dispatched SendTemplatedEmailJob for recipient', [
-                            'recipient' => $recipient,
-                            'list_id' => $list->id,
-                            'template' => $template->slug
-                        ]);
+                        foreach ($subscribers as $subscriber) {
+                            $variables = [
+                                'name' => $subscriber->email,
+                                'first_name' => explode('@', $subscriber->email)[0],
+                                'app_name' => config('app.name', 'Our App'),
+                            ];
+
+                            SendTemplatedEmailJob::dispatch($subscriber->email, $template->slug, $variables, []);
+                            Log::info('Dispatched SendTemplatedEmailJob for subscriber', [
+                                'subscriber_email' => $subscriber->email,
+                                'list_id' => $list->id,
+                                'template' => $template->slug
+                            ]);
+                        }
                     } else {
                         Log::warning('No suitable template found for inbound email response', [
                             'recipient' => $recipient,
