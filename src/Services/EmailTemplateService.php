@@ -105,7 +105,7 @@ class EmailTemplateService
      *
      * @throws \InvalidArgumentException
      */
-    public function renderTemplate(string $slug, array $variables = []): string
+    public function renderTemplate(string $slug, array $variables = []): array
     {
         $template = EmailTemplate::where('slug', $slug)->where('is_active', true)->firstOrFail();
         $required = $template->variables ?? [];
@@ -138,11 +138,13 @@ class EmailTemplateService
         if (!empty($stillMissing)) {
             throw new \InvalidArgumentException('Missing required variables: '.implode(', ', $stillMissing));
         }
-        $content = $template->html_content ?? $template->text_content;
-        if (!$content) {
-            throw new \InvalidArgumentException('Template has no html_content or text_content.');
-        }
-        return strtr($content, array_map(fn($v) => (string) $v, $variables));
+
+        return [
+            'template' => $template,
+            'subject' => $template->renderSubject($variables),
+            'html_content' => $template->renderHtml($variables),
+            'text_content' => $template->renderText($variables),
+        ];
     }
 
     /**
