@@ -107,7 +107,7 @@ class MailgunService
             'body_plain' => $request->input('body-plain'),
             'body_html' => $request->input('body-html'),
             'message_id' => $request->input('Message-Id'),
-            'timestamp' => $request->input('timestamp'),
+            'timestamp' => (int) $request->input('timestamp'),
             'token' => $request->input('token'),
             'signature' => $request->input('signature'),
             'attachments' => $request->file('attachment') ?? [],
