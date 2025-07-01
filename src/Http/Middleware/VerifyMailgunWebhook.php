@@ -78,7 +78,7 @@ class VerifyMailgunWebhook
             return response()->json(['error' => 'Webhook timestamp too old'], 401);
         }
 
-        $signingKey = config('services.mailgun.webhook_signing_key');
+        $signingKey = config('mailgun.webhook_signing_key');
         if (! $signingKey) {
             Log::error('Mailgun webhook signing key not configured');
 
