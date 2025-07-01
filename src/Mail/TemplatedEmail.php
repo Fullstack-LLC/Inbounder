@@ -48,13 +48,6 @@ class TemplatedEmail extends Mailable
         // Set the subject
         $this->subject($rendered['subject']);
 
-        // Set the content
-        $this->html($rendered['html_content']);
-
-        if ($rendered['text_content']) {
-            $this->text($rendered['text_content']);
-        }
-
         // Set additional options
         if (isset($options['from'])) {
             $this->from($options['from']['address'], $options['from']['name'] ?? null);
