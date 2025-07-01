@@ -51,15 +51,17 @@ class VerifyMailgunWebhook
      */
     private function verifySignature(Request $request, Closure $next): Response|JsonResponse
     {
-        $timestamp = $request->input('timestamp');
-        $token = $request->input('token');
-        $signature = $request->input('signature');
+        // Try to get signature parameters from both flat and nested structures
+        $timestamp = $request->input('timestamp') ?? $request->input('signature.timestamp');
+        $token = $request->input('token') ?? $request->input('signature.token');
+        $signature = $request->input('signature') ?? $request->input('signature.signature');
 
         if (! $timestamp || ! $token || ! $signature) {
             Log::warning('Mailgun webhook missing required parameters', [
                 'timestamp' => $timestamp,
                 'token' => $token,
                 'signature' => $signature,
+                'request_data' => $request->all(),
             ]);
 
             return response()->json(['error' => 'Invalid webhook signature'], 401);
