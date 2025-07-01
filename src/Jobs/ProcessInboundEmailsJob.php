@@ -27,9 +27,21 @@ class ProcessInboundEmailsJob implements ShouldQueue
             foreach ($recipients as $recipient) {
                 $list = DistributionList::where('email_address', $recipient)->first();
                 if ($list) {
-                    // Try to find a welcome template, fallback to newsletter if not found
-                    $template = EmailTemplate::where('slug', 'welcome')->first()
-                        ?? EmailTemplate::where('slug', 'newsletter')->first();
+                    // Use default_template_id if set, otherwise fallback to slug logic
+                    $template = null;
+                    if ($list->default_template_id) {
+                        $template = EmailTemplate::find($list->default_template_id);
+                        if (!$template) {
+                            Log::warning('default_template_id set but template not found', [
+                                'list_id' => $list->id,
+                                'default_template_id' => $list->default_template_id
+                            ]);
+                        }
+                    }
+                    if (!$template) {
+                        $template = EmailTemplate::where('slug', 'welcome')->first()
+                            ?? EmailTemplate::where('slug', 'newsletter')->first();
+                    }
 
                     if ($template) {
                         $variables = [
