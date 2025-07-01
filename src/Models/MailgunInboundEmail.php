@@ -55,7 +55,6 @@ class MailgunInboundEmail extends Model
         'message_headers' => 'array',
         'content_id_map' => 'array',
         'raw_data' => 'array',
-        'timestamp' => 'datetime',
     ];
 
     /**
@@ -109,7 +108,7 @@ class MailgunInboundEmail extends Model
     /**
      * Get the timestamp.
      */
-    public function getTimestamp(): ?\Carbon\Carbon
+    public function getTimestamp(): ?int
     {
         return $this->timestamp;
     }
