@@ -100,20 +100,4 @@ class TemplatedEmail extends Mailable
     {
         return [];
     }
-
-    /**
-     * Build the message.
-     *
-     * @return $this
-     */
-    public function build()
-    {
-        return $this->view('emails.template')
-            ->with([
-                'html_content' => $this->template->renderHtml($this->variables),
-                'text_content' => $this->template->renderText($this->variables),
-                'template' => $this->template,
-                'variables' => $this->variables,
-            ]);
-    }
 }
