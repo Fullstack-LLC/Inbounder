@@ -302,8 +302,12 @@ class DistributionListService
      */
     private function validateSubscriberData(array $data): void
     {
+        // Get the user model and table from config
+        $userModel = config('mailgun.user_model', \App\Models\User::class);
+        $userTable = (new $userModel)->getTable();
+
         $rules = [
-            'user_id' => 'nullable|integer|exists:users,id',
+            'user_id' => "nullable|integer|exists:{$userTable},id",
             'email' => 'nullable|email|max:255',
             'metadata' => 'nullable|array',
         ];

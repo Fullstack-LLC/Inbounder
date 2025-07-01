@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Inbounder\Console\Commands\Demo;
 
-use App\Models\User;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Console\Command;
 use Illuminate\Support\Str;
 use Inbounder\Models\DistributionList;
@@ -578,7 +578,9 @@ class MockEmailCampaign extends Command
      */
     private function getRealUsers(int $numUsers): array
     {
-        return User::query()
+        $userModel = config('mailgun.user_model', \App\Models\User::class);
+
+        return $userModel::query()
             ->orderBy('id')
             ->limit($numUsers)
             ->get()
