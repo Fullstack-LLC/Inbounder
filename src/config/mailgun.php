@@ -151,6 +151,7 @@ return [
 
             /** The events to track. */
             'track_events' => [
+                'accepted',
                 'delivered',
                 'opened',
                 'clicked',
