@@ -54,6 +54,10 @@ class MailgunService
         try {
             /** If there is event-data, then it's a webhook and we can safely drop it. */
             if ($request->input('event-data')) {
+                logger()->debug('Webhook received on inbound route, dropping...', [
+                    'data' => $request->all(),
+                ]);
+
                 return [
                     'status' => 'success',
                     'message' => 'Webhook received on inbound route, dropping...',
