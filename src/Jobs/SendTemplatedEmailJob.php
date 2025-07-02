@@ -46,7 +46,8 @@ class SendTemplatedEmailJob implements ShouldQueue
         array $options = []
     )
     {
-        $this->recipient = $user->email;
+        $this->email = $email;
+        $this->user = $user;
         $this->list = $list;
         $this->variables = $variables;
         $this->options = $options;
@@ -57,7 +58,7 @@ class SendTemplatedEmailJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $template = EmailTemplate::where('id', $this->list->email_template_id)->first();
+        $template = $this->list->emailTemplate;
 
         $options = [
             'from' => [
@@ -75,11 +76,11 @@ class SendTemplatedEmailJob implements ShouldQueue
 
         $mailable = new TemplatedEmail($template->slug, $this->variables, $options);
 
-        Mail::to($this->recipient)->send($mailable);
+        Mail::to($this->user->email)->send($mailable);
 
         MailgunOutboundEmail::create([
             'message_id' => uniqid('outbound_' . time() . '_', true),
-            'recipient' => $this->recipient,
+            'recipient' => $this->user->email,
             'from_address' => $this->getReplyToAddress(),
             'from_name' => $this->getFromName(),
             'distribution_list_id' => $this->list->id,

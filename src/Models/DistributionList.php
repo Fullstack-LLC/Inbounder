@@ -61,6 +61,14 @@ class DistributionList extends Model
         'metadata' => 'array',
     ];
 
+    protected $with = ['emailTemplate'];
+
+    public function emailTemplate()
+    {
+        return $this->belongsTo(EmailTemplate::class, 'email_template_id');
+    }
+
+
     /**
      * Boot the model and set up event listeners.
      */
@@ -250,13 +258,8 @@ class DistributionList extends Model
         ];
     }
 
-    public function defaultTemplate()
-    {
-        return $this->belongsTo(\Inbounder\Models\EmailTemplate::class, 'default_template_id');
-    }
-
     public function getDefaultTemplate()
     {
-        return $this->defaultTemplate;
+        return $this->emailTemplate;
     }
 }

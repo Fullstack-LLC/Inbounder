@@ -59,6 +59,13 @@ class EmailTemplate extends Model
         'is_active' => 'boolean',
     ];
 
+    protected $with = ['distributionLists'];
+
+    public function distributionLists()
+    {
+        return $this->hasMany(DistributionList::class, 'email_template_id');
+    }
+
     /**
      * Boot the model and set up event listeners.
      */

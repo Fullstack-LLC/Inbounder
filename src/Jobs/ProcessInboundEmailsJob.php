@@ -47,17 +47,6 @@ class ProcessInboundEmailsJob implements ShouldQueue
                     return;
                 }
 
-                // Get the default template for the list.
-                if ($list->email_template_id) {
-                    $template = EmailTemplate::where('id', $list->email_template_id)->first();
-                }
-
-                if (! $template) {
-                    logger()->notice('No default template found for list: ' . $list->id . '. Skipping email.');
-                    return;
-                }
-
-                // Get all active subscribers of this list
                 $subscribers = $list->activeSubscribers()->get();
 
                 foreach ($subscribers as $subscriber) {
