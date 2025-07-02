@@ -48,8 +48,8 @@ class ProcessInboundEmailsJob implements ShouldQueue
                 }
 
                 // Get the default template for the list.
-                if ($list->default_template_id) {
-                    $template = EmailTemplate::where('id', $list->default_template_id)->first();
+                if ($list->email_template_id) {
+                    $template = EmailTemplate::where('id', $list->email_template_id)->first();
                 }
 
                 if (! $template) {
