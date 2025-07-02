@@ -24,7 +24,8 @@
         "php": "^8.2",
         "laravel/framework": "^10.0|^11.0|^12.0",
         "symfony/http-client": "^6.0|^7.0",
-        "symfony/mailgun-mailer": "^6.0|^7.0"
+        "symfony/mailgun-mailer": "^6.0|^7.0",
+        "spatie/laravel-permission": "^6.0"
     },
     "require-dev": {
         "fakerphp/faker": "^1.23",
