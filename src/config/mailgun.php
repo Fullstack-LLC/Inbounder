@@ -229,7 +229,7 @@ return [
         'policy_method' => 'sendEmail',
 
         /** The spatie permission to use for authorization. */
-        'spatie_permission' => 'send email',
+        'spatie_permission' => 'send-email',
     ],
 
 

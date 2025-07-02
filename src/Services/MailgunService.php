@@ -55,9 +55,11 @@ class MailgunService
             $emailData = $this->parseInboundEmail($request);
 
             /** Make sure the sender is authorized to send emails to this system. */
-            if (! $this->authorizedToSend($emailData['from'])) {
+            if (! $this->authorizedToSend($emailData['sender'])) {
                 throw new NotAuthorizedToSendException();
             }
+
+            logger()->debug('User authorized to send.');
 
             $this->processInboundEmail($emailData);
 
@@ -67,10 +69,6 @@ class MailgunService
                 'data' => $emailData,
             ];
         } catch (\Throwable $e) {
-            Log::error('Error processing Mailgun inbound webhook', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
             throw new MailgunInboundException('Failed to process inbound email: '.$e->getMessage(), 0, $e);
         }
     }
@@ -153,21 +151,12 @@ class MailgunService
     public function handleWebhook(Request $request): array
     {
         try {
-            if ($this->getConfig('app.debug') || $this->getConfig('mailgun.logging.level') === 'debug') {
-                Log::info('Mailgun webhook received', [
-                    'headers' => $request->headers->all(),
-                    'body' => $request->all(),
-                ]);
-            } else {
-                Log::info('Mailgun webhook received', [
-                    'event' => $request->input('event-data.event'),
-                    'message_id' => $request->input('event-data.message.headers.message-id'),
-                    'recipient' => $request->input('event-data.recipient'),
-                ]);
-            }
-
             $webhookData = $this->parseWebhookData($request);
             $this->processWebhook($webhookData);
+
+            logger()->debug('Webhook processed successfully', [
+                'data' => $webhookData,
+            ]);
 
             return [
                 'status' => 'success',
@@ -175,10 +164,6 @@ class MailgunService
                 'data' => $webhookData,
             ];
         } catch (\Throwable $e) {
-            Log::error('Error processing Mailgun webhook', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
             throw new MailgunWebhookException('Failed to process webhook: '.$e->getMessage(), 0, $e);
         }
     }
@@ -264,13 +249,6 @@ class MailgunService
      */
     private function processWebhook(array $webhookData): void
     {
-        Log::info('Processing webhook', [
-            'event' => $webhookData['event'],
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-
-        // Update outbound email tracking if this is a tracked email
         if ($webhookData['message_id']) {
             try {
                 $this->trackingService->updateFromWebhook(
@@ -278,12 +256,14 @@ class MailgunService
                     $webhookData['event'],
                     $webhookData
                 );
-            } catch (\Exception $e) {
-                Log::warning('Failed to update outbound email tracking', [
+
+                logger()->debug('Outbound email tracking updated', [
                     'message_id' => $webhookData['message_id'],
                     'event' => $webhookData['event'],
-                    'error' => $e->getMessage(),
                 ]);
+
+            } catch (\Exception $e) {
+                throw new MailgunWebhookException('Failed to update outbound email tracking', 0, $e);
             }
         }
 
@@ -291,7 +271,6 @@ class MailgunService
             $this->storeWebhookEvent($webhookData);
         }
 
-        // Dispatch webhook event if enabled and configured for this event type
         $this->dispatchWebhookEvent($webhookData);
 
         switch ($webhookData['event']) {
@@ -326,7 +305,7 @@ class MailgunService
                 $this->handleStored($webhookData);
                 break;
             default:
-                Log::info('Unhandled webhook event', ['event' => $webhookData['event']]);
+                logger()->debug('Unhandled webhook event', ['event' => $webhookData['event']]);
         }
     }
 
@@ -565,15 +544,13 @@ class MailgunService
         $user = $userModel::where('email', $from)->first();
 
         if (!$user) {
-            Log::info('Sender not found in user database', ['email' => $from]);
             return false;
         }
 
-        // Use the same authorization logic as the CanSendEmails trait
-        $method = $this->getConfig('mailgun.authorization.method', 'gate');
-        $gateName = $this->getConfig('mailgun.authorization.gate_name', 'send-email');
-        $policyMethod = $this->getConfig('mailgun.authorization.policy_method', 'sendEmail');
-        $spatiePermission = $this->getConfig('mailgun.authorization.spatie_permission', 'send email');
+        $method = $this->getConfig('mailgun.authorization.method');
+        $gateName = $this->getConfig('mailgun.authorization.gate_name');
+        $policyMethod = $this->getConfig('mailgun.authorization.policy_method');
+        $spatiePermission = $this->getConfig('mailgun.authorization.spatie_permission');
 
         switch ($method) {
             case 'none':
