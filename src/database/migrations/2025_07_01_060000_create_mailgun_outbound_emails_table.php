@@ -20,6 +20,7 @@ return new class extends Migration
             $table->string('from_address')->nullable();
             $table->string('from_name')->nullable();
             $table->string('subject')->nullable();
+            $table->longText('html_body')->nullable();
             $table->string('campaign_id')->nullable()->index();
             $table->foreignId('distribution_list_id')->constrained('distribution_lists')->onDelete('cascade');
             $table->foreignId('email_template_id')->constrained('email_templates')->onDelete('cascade');
