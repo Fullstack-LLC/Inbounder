@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inbounder\Models\EmailTemplate;
+use App\Models\User;
+use Inbounder\Models\MailgunOutboundEmail;
 
 /**
  * Service for managing email templates.
@@ -105,27 +107,38 @@ class EmailTemplateService
      *
      * @throws \InvalidArgumentException
      */
-    public function renderTemplate(string $slug, array $variables = []): array
+    public function renderTemplate(User $user, EmailTemplate $template, MailgunOutboundEmail $outboundEmail, array $variables = []): array
     {
-        $template = EmailTemplate::where('slug', $slug)->where('is_active', true)->firstOrFail();
+        /**
+         * Templates may or may not have variables to allow for dynamic content. If variables are present,
+         * they are considered required.
+         */
         $required = $template->variables ?? [];
+
         $missing = [];
+
+        list($first_name, $last_name) = explode(' ', $user->name);
+
+        /**
+         * We make the following variables available to all templates by default.
+         */
         $defaults = [
-            'first_name' => 'Test',
-            'last_name' => 'User',
-            'name' => 'Test User',
-            'app_name' => 'Test Application',
-            'login_url' => 'https://example.com/login',
-            'unsubscribe_url' => 'https://example.com/unsubscribe',
-            'subject' => 'Test Subject',
-            'content' => 'Test Content',
-            'message' => 'Test Message',
-            'action_url' => 'https://example.com/action',
-            'campaign_subject' => 'Test Campaign Subject',
-            'campaign_content' => 'Test Campaign Content',
-            'cta_text' => 'Learn More',
-            'cta_url' => 'https://example.com/campaign',
+            'first_name' => $first_name,
+            'last_name' => $last_name,
+            'name' => $user->name,
+            'email' => $user->email,
+
+            // @todo This is a temporary solution to get the tenant name.
+            'tenant_name' => '',
+
+            // @todo We need to add the unsubscribe URL to the template.
+            'unsubscribe_url' => '',
+
+            // @todo We need to add the login URL to the template.
+            'login_url' => '',
+
         ];
+
         foreach ($required as $var) {
             if (!array_key_exists($var, $variables)) {
                 $missing[] = $var;
@@ -134,6 +147,10 @@ class EmailTemplateService
                 }
             }
         }
+
+        /**
+         * If there are still missing variables, throw an exception.
+         */
         $stillMissing = array_filter($required, fn($var) => !array_key_exists($var, $variables));
         if (!empty($stillMissing)) {
             throw new \InvalidArgumentException('Missing required variables: '.implode(', ', $stillMissing));
@@ -141,9 +158,9 @@ class EmailTemplateService
 
         return [
             'template' => $template,
-            'subject' => $template->renderSubject($variables),
-            'html_content' => $template->renderHtml($variables),
-            'text_content' => $template->renderText($variables),
+            'subject' => $outboundEmail->subject,
+            'html_content' => $template->html_content,
+            'text_content' => $template->text_content,
         ];
     }
 

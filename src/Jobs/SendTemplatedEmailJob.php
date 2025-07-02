@@ -13,6 +13,7 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inbounder\Mail\TemplatedEmail;
 use Inbounder\Models\DistributionList;
 use Inbounder\Models\EmailTemplate;
@@ -31,6 +32,8 @@ class SendTemplatedEmailJob implements ShouldQueue
     public DistributionList $list;
 
     public MailgunInboundEmail $email;
+
+    public EmailTemplate $template;
 
     public array $variables;
 
@@ -87,9 +90,6 @@ class SendTemplatedEmailJob implements ShouldQueue
             // Merge options with the default options
             $this->options = array_merge($this->options, $options);
 
-            // Start a transaction
-            DB::beginTransaction();
-
             // Create the outbound email
             $outboundEmail = MailgunOutboundEmail::create([
                 'message_id' => $uid,
@@ -108,26 +108,21 @@ class SendTemplatedEmailJob implements ShouldQueue
                 ],
             ]);
 
+            /**
+             * Create a new templated email.
+             * This uses the EmailTemplateService to render the template.
+             */
             $mailable = new TemplatedEmail(
-                $uid,
-                $template->slug,
+                $this->user,
+                $outboundEmail,
+                $template,
                 $this->variables,
                 $this->options
             );
 
-
-            // Send the email
             Mail::to($this->user->email)->send($mailable);
 
-            // Commit the transaction
-            DB::commit();
-
-            logger()->info('Email sent to: ' . $this->user->email);
-
         } catch (\Exception $e) {
-
-            // Rollback the transaction
-            DB::rollBack();
 
             logger()->error('Error sending email: ' . $e->getMessage());
 
