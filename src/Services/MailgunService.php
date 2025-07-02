@@ -435,7 +435,8 @@ class MailgunService
     private function getInternalMessageId(array $userVariables): ?MailgunOutboundEmail
     {
         logger()->debug('User variables: ', [
-            'user_variables' => $userVariables,
+            'user_variables' => $userVariables['user_variables'],
+            'message_id' => $userVariables['user_variables']['message_id'],
         ]);
 
         if (isset($userVariables['user_variables']['message_id'])) {
