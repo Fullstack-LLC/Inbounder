@@ -41,7 +41,7 @@ return new class extends Migration
              */
             $table->enum('list_type', ['list', 'sender'])->default('list');
 
-            $table->foreignId('email_template_id')->constrained('email_templates')->onDelete('set null');
+            $table->foreignId('email_template_id')->nullable()->constrained('email_templates')->onDelete('set null');
 
             $table->json('metadata')->nullable();
             $table->timestamps();
