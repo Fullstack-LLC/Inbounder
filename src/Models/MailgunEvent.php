@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Model;
  * delivered, bounced, complained, unsubscribed, opened, and clicked events.
  *
  * @property int $id
- * @property string|null $event_type
+ * @property string|null $event
  * @property string|null $message_id
  * @property string|null $recipient
  * @property string|null $domain
@@ -59,7 +59,7 @@ class MailgunEvent extends Model
      * @var array<string>
      */
     protected $fillable = [
-        'event_type',
+        'event',
         'message_id',
         'recipient',
         'domain',
@@ -106,7 +106,7 @@ class MailgunEvent extends Model
      */
     public function getEventType(): ?string
     {
-        return $this->event_type;
+        return $this->event;
     }
 
     /**
@@ -304,9 +304,9 @@ class MailgunEvent extends Model
     /**
      * Scope to filter by event type
      */
-    public function scopeEventType($query, $eventType)
+    public function scopeEvent($query, $event)
     {
-        return $query->where('event_type', $eventType);
+        return $query->where('event', $event);
     }
 
     /**

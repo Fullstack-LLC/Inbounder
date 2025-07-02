@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('mailgun_events', function (Blueprint $table) {
             $table->id();
-            $table->string('event_type'); // delivered, bounced, complained, etc.
+            $table->string('event'); // delivered, bounced, complained, etc.
             $table->string('message_id')->nullable();
             $table->string('recipient')->nullable();
             $table->string('domain')->nullable();

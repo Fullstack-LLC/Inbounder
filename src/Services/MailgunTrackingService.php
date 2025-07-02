@@ -218,12 +218,12 @@ class MailgunTrackingService
 
         return [
             'total_sent' => $emails->count(),
-            'delivered' => $events->where('event_type', 'delivered')->unique('message_id')->count(),
-            'opened' => $events->where('event_type', 'opened')->unique('message_id')->count(),
-            'clicked' => $events->where('event_type', 'clicked')->unique('message_id')->count(),
-            'bounced' => $events->where('event_type', 'bounced')->unique('message_id')->count(),
-            'complained' => $events->where('event_type', 'complained')->unique('message_id')->count(),
-            'unsubscribed' => $events->where('event_type', 'unsubscribed')->unique('message_id')->count(),
+            'delivered' => $events->where('event', 'delivered')->unique('message_id')->count(),
+            'opened' => $events->where('event', 'opened')->unique('message_id')->count(),
+            'clicked' => $events->where('event', 'clicked')->unique('message_id')->count(),
+            'bounced' => $events->where('event', 'bounced')->unique('message_id')->count(),
+            'complained' => $events->where('event', 'complained')->unique('message_id')->count(),
+            'unsubscribed' => $events->where('event', 'unsubscribed')->unique('message_id')->count(),
         ];
     }
 
@@ -237,12 +237,12 @@ class MailgunTrackingService
 
         return [
             'total_sent' => $emails->count(),
-            'delivered' => $events->where('event_type', 'delivered')->unique('message_id')->count(),
-            'opened' => $events->where('event_type', 'opened')->unique('message_id')->count(),
-            'clicked' => $events->where('event_type', 'clicked')->unique('message_id')->count(),
-            'bounced' => $events->where('event_type', 'bounced')->unique('message_id')->count(),
-            'complained' => $events->where('event_type', 'complained')->unique('message_id')->count(),
-            'unsubscribed' => $events->where('event_type', 'unsubscribed')->unique('message_id')->count(),
+            'delivered' => $events->where('event', 'delivered')->unique('message_id')->count(),
+            'opened' => $events->where('event', 'opened')->unique('message_id')->count(),
+            'clicked' => $events->where('event', 'clicked')->unique('message_id')->count(),
+            'bounced' => $events->where('event', 'bounced')->unique('message_id')->count(),
+            'complained' => $events->where('event', 'complained')->unique('message_id')->count(),
+            'unsubscribed' => $events->where('event', 'unsubscribed')->unique('message_id')->count(),
         ];
     }
 }
