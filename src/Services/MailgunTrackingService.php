@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Inbounder\Services;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Support\Facades\Log;
 use Inbounder\Exceptions\MailgunTrackingException;
 use Inbounder\Models\MailgunOutboundEmail;
@@ -48,34 +49,23 @@ class MailgunTrackingService
     }
 
     /**
-     * Update outbound email based on webhook event.
+     * Get outbound email based on webhook event.
      *
-     * @throws \Inbounder\Exceptions\MailgunTrackingException
+     * @param string $messageId
+     * @return MailgunOutboundEmail
+     *
+     * @throws ModelNotFoundException
      */
-    public function updateFromWebhook(string $messageId, string $eventType, array $eventData = []): ?MailgunOutboundEmail
+    public function getOutboundEmail(string $messageId): ?MailgunOutboundEmail
     {
         try {
-            $outboundEmail = MailgunOutboundEmail::where('message_id', $messageId)->first();
 
-            if (! $outboundEmail) {
-                Log::warning('Outbound email not found for webhook event', [
-                    'message_id' => $messageId,
-                    'event_type' => $eventType,
-                ]);
-
-                return null;
-            }
-
-            $this->updateEmailStatus($outboundEmail, $eventType, $eventData);
+            $outboundEmail = MailgunOutboundEmail::where('message_id', $messageId)->firstOrFail();
 
             return $outboundEmail;
-        } catch (\Exception $e) {
-            Log::error('Failed to update outbound email from webhook', [
-                'message_id' => $messageId,
-                'event_type' => $eventType,
-                'error' => $e->getMessage(),
-            ]);
-            throw new MailgunTrackingException('Failed to update outbound email from webhook: '.$e->getMessage());
+
+        } catch (ModelNotFoundException $e) {
+            throw new ModelNotFoundException($e->getMessage());
         }
     }
 

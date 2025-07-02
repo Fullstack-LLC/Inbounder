@@ -4,15 +4,19 @@ declare(strict_types=1);
 
 namespace Inbounder\Services;
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Inbounder\Events\InboundEmailReceived;
 use Inbounder\Events\WebhookEventReceived;
-use Inbounder\Exceptions\MailgunInboundException;
 
+use Inbounder\Exceptions\MailgunInboundException;
+use Inbounder\Exceptions\MailgunTrackingException;
 use Inbounder\Exceptions\MailgunWebhookException;
 use Inbounder\Exceptions\NotAuthorizedToSendException;
+use Inbounder\Models\MailgunOutboundEmail;
+use Inbounder\Tests\Feature\MailgunTrackingTest;
 
 class MailgunService
 {
@@ -166,6 +170,14 @@ class MailgunService
                 'status' => 'success',
                 'message' => 'Webhook processed successfully',
             ];
+        } catch (MailgunTrackingException $e) {
+            logger()->notice($e->getMessage());
+
+            return [
+                'status' => 'notice',
+                'message' => $e->getMessage(),
+            ];
+
         } catch (\Throwable $e) {
             throw new MailgunWebhookException('Failed to process webhook: '.$e->getMessage(), 0, $e);
         }
@@ -206,7 +218,6 @@ class MailgunService
             'user_variables' => $request->input('event-data.user-variables'),
         ];
 
-        // Ensure string fields are actually strings
         $stringFields = [
             'event', 'message_id', 'recipient', 'domain', 'ip', 'country', 'region',
             'city', 'user_agent', 'device_type', 'client_type', 'client_name',
@@ -219,23 +230,19 @@ class MailgunService
             }
         }
 
-        // Ensure JSON fields are properly formatted
         $jsonFields = [
             'delivery_status', 'envelope', 'flags', 'tags', 'campaigns', 'user_variables'
         ];
 
         foreach ($jsonFields as $field) {
             if (isset($data[$field])) {
-                // If it's already a string, try to decode it to ensure it's valid JSON
                 if (is_string($data[$field])) {
                     $decoded = json_decode($data[$field], true);
                     if (json_last_error() === JSON_ERROR_NONE) {
-                        // It's valid JSON, keep it as is
                         continue;
                     }
                 }
 
-                // If it's an array or invalid JSON string, encode it
                 if (is_array($data[$field]) || !is_string($data[$field])) {
                     $data[$field] = json_encode($data[$field]);
                 }
@@ -254,56 +261,23 @@ class MailgunService
     {
         if ($webhookData['message_id']) {
             try {
-                $this->trackingService->updateFromWebhook(
-                    $webhookData['message_id'],
-                    $webhookData['event'],
-                    $webhookData
-                );
+
+                $outboundEmail = $this->trackingService->getOutboundEmail($webhookData['message_id']);
+
+                if ($this->getConfig('mailgun.database.webhooks.enabled', false)) {
+                    $this->storeWebhookEvent($webhookData);
+                    $this->updateOutboundEmailStatus($outboundEmail, $webhookData['event'], $webhookData);
+                }
+
+                $this->dispatchWebhookEvent($webhookData);
+
+            } catch (ModelNotFoundException $e) {
+                logger()->notice('Unable to match message: ' . $webhookData['message_id'] . ' to an outbound email.');
             } catch (\Exception $e) {
                 throw new MailgunWebhookException('Failed to update outbound email tracking', 0, $e);
             }
         }
 
-        if ($this->getConfig('mailgun.database.webhooks.enabled', false)) {
-            $this->storeWebhookEvent($webhookData);
-        }
-
-        $this->dispatchWebhookEvent($webhookData);
-
-        switch ($webhookData['event']) {
-            case 'accepted':
-                $this->handleAccepted($webhookData);
-                break;
-            case 'delivered':
-                $this->handleDelivered($webhookData);
-                break;
-            case 'rejected':
-                $this->handleRejected($webhookData);
-                break;
-            case 'dropped':
-                $this->handleDropped($webhookData);
-                break;
-            case 'bounced':
-                $this->handleBounced($webhookData);
-                break;
-            case 'complained':
-                $this->handleComplained($webhookData);
-                break;
-            case 'unsubscribed':
-                $this->handleUnsubscribed($webhookData);
-                break;
-            case 'opened':
-                $this->handleOpened($webhookData);
-                break;
-            case 'clicked':
-                $this->handleClicked($webhookData);
-                break;
-            case 'stored':
-                $this->handleStored($webhookData);
-                break;
-            default:
-                logger()->debug('Unhandled webhook event', ['event' => $webhookData['event']]);
-        }
     }
 
     /**
@@ -311,132 +285,17 @@ class MailgunService
      *
      * @param  array  $webhookData  The parsed webhook data.
      */
-    private function handleDelivered(array $webhookData): void
+    private function updateOutboundEmailStatus(MailgunOutboundEmail $outboundEmail, string $eventType, array $eventData = []): void
     {
-        Log::info('Email delivered', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-    }
+        // Get the configured outbound events from the config.
+        $outboundEvents = $this->getConfig('mailgun.webhook_events.trigger_events', []);
 
-    /**
-     * Handle bounced event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleBounced(array $webhookData): void
-    {
-        Log::warning('Email bounced', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-            'reason' => $webhookData['reason'],
-            'code' => $webhookData['code'],
-        ]);
-    }
+        if (! in_array($eventType, $outboundEvents)) {
+            return;
+        }
 
-    /**
-     * Handle complained event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleComplained(array $webhookData): void
-    {
-        Log::warning('Email complained', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-    }
-
-    /**
-     * Handle unsubscribed event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleUnsubscribed(array $webhookData): void
-    {
-        Log::info('User unsubscribed', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-    }
-
-    /**
-     * Handle opened event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleOpened(array $webhookData): void
-    {
-        Log::info('Email opened', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-            'user_agent' => $webhookData['user_agent'],
-        ]);
-    }
-
-    /**
-     * Handle clicked event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleClicked(array $webhookData): void
-    {
-        Log::info('Email link clicked', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-            'user_agent' => $webhookData['user_agent'],
-        ]);
-    }
-
-    /**
-     * Handle accepted event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleAccepted(array $webhookData): void
-    {
-        Log::info('Email accepted', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-    }
-
-    /**
-     * Handle rejected event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleRejected(array $webhookData): void
-    {
-        Log::warning('Email rejected', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-    }
-
-    /**
-     * Handle dropped event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleDropped(array $webhookData): void
-    {
-        Log::warning('Email dropped', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
-        ]);
-    }
-
-    /**
-     * Handle stored event.
-     *
-     * @param  array  $webhookData  The parsed webhook data.
-     */
-    private function handleStored(array $webhookData): void
-    {
-        Log::info('Email stored', [
-            'message_id' => $webhookData['message_id'],
-            'recipient' => $webhookData['recipient'],
+        $outboundEmail->update([
+            $eventType . '_at' => now(),
         ]);
     }
 
@@ -483,33 +342,7 @@ class MailgunService
 
         try {
             $modelClass = $this->getConfig('mailgun.database.webhooks.model');
-            $modelClass::create([
-                'event_type' => $webhookData['event'] ?? null,
-                'message_id' => $webhookData['message_id'] ?? null,
-                'recipient' => $webhookData['recipient'] ?? null,
-                'domain' => $webhookData['domain'] ?? null,
-                'ip' => $webhookData['ip'] ?? null,
-                'country' => $webhookData['country'] ?? null,
-                'region' => $webhookData['region'] ?? null,
-                'city' => $webhookData['city'] ?? null,
-                'user_agent' => $webhookData['user_agent'] ?? null,
-                'device_type' => $webhookData['device_type'] ?? null,
-                'client_type' => $webhookData['client_type'] ?? null,
-                'client_name' => $webhookData['client_name'] ?? null,
-                'client_os' => $webhookData['client_os'] ?? null,
-                'reason' => $webhookData['reason'] ?? null,
-                'code' => $webhookData['code'] ?? null,
-                'error' => $webhookData['error'] ?? null,
-                'severity' => $webhookData['severity'] ?? null,
-                'delivery_status' => $webhookData['delivery_status'] ?? null,
-                'envelope' => $webhookData['envelope'] ?? null,
-                'flags' => $webhookData['flags'] ?? null,
-                'tags' => $webhookData['tags'] ?? null,
-                'campaigns' => $webhookData['campaigns'] ?? null,
-                'user_variables' => $webhookData['user_variables'] ?? null,
-                'event_timestamp' => $webhookData['timestamp'] ? date('Y-m-d H:i:s', (int) $webhookData['timestamp']) : null,
-                'raw_data' => $webhookData,
-            ]);
+            $modelClass::create($webhookData);
         } catch (\Exception $e) {
             throw $e;
         }

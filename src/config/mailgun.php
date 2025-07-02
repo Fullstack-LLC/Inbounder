@@ -195,13 +195,13 @@ return [
 
         /** The events to trigger. */
         'trigger_events' => [
+            'accepted' => true,
             'delivered' => true,
             'bounced' => true,
             'complained' => true,
             'unsubscribed' => true,
             'opened' => true,
             'clicked' => true,
-            'accepted' => true,
             'rejected' => true,
             'dropped' => true,
         ],

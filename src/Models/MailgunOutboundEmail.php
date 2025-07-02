@@ -63,12 +63,14 @@ class MailgunOutboundEmail extends Model
         'metadata',
         'status',
         'sent_at',
+        'accepted_at',
         'delivered_at',
         'opened_at',
         'clicked_at',
         'bounced_at',
         'complained_at',
         'unsubscribed_at',
+        'failed_at',
     ];
 
     /**
