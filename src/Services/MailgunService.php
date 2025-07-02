@@ -262,7 +262,7 @@ class MailgunService
         $outboundMessage = $this->getInternalMessageId($webhookData);
 
         if (! $outboundMessage) {
-            logger()->notice('Unable to match message: ' . $webhookData['message_id'] . ' to an outbound email.');
+            //logger()->notice('Unable to match message: ' . $webhookData['message_id'] . ' to an outbound email.');
             return;
         }
 
@@ -429,19 +429,24 @@ class MailgunService
     /**
      * Get the internal message ID from the user variables.
      *
-     * @param  array  $userVariables  The user variables.
+     * @param  array  $webhookData  The user variables.
      * @return MailgunOutboundEmail|null The outbound email record.
      */
-    private function getInternalMessageId(array $userVariables): ?MailgunOutboundEmail
+    private function getInternalMessageId(array $webhookData): ?MailgunOutboundEmail
     {
-        /**
-         * if the outbound_message_id property doesnt exist, we can return null.
-         */
-        if (! array_key_exists('outbound_message_id', $userVariables['user_variables'])) {
+        /** Sometimes a webhook doesn't even have user variables. */
+        if (! array_key_exists('user_variables', $webhookData)) {
             return null;
         }
 
-        return MailgunOutboundEmail::where('message_id', $userVariables['user_variables']['outbound_message_id'])->first();
+        /**
+         * if the outbound_message_id property doesnt exist, we can return null.
+         */
+        if (! array_key_exists('outbound_message_id', $webhookData['user_variables'])) {
+            return null;
+        }
+
+        return MailgunOutboundEmail::where('message_id', $webhookData['user_variables']['outbound_message_id'])->first();
 
     }
 }
