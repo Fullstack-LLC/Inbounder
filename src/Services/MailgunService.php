@@ -436,7 +436,9 @@ class MailgunService
     {
         /** Sometimes a webhook doesn't even have user variables. */
         if (! array_key_exists('user_variables', $webhookData) || !is_array($webhookData['user_variables'])) {
-            logger()->notice('Mailgun webhook missing user variables');
+            logger()->notice('Mailgun webhook missing user variables', [
+                'webhook_data' => $webhookData,
+            ]);
             return null;
         }
 
