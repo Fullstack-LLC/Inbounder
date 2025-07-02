@@ -435,7 +435,7 @@ class MailgunService
     private function getInternalMessageId(array $webhookData): ?MailgunOutboundEmail
     {
         /** Sometimes a webhook doesn't even have user variables. */
-        if (! array_key_exists('user_variables', $webhookData)) {
+        if (! array_key_exists('user_variables', $webhookData) || !is_array($webhookData['user_variables'])) {
             return null;
         }
 
