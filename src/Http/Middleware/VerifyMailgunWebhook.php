@@ -27,11 +27,11 @@ class VerifyMailgunWebhook
      */
     public function handle(Request $request, Closure $next): Response|JsonResponse
     {
-        if (! config('mailgun.webhook.verify_signature', true)) {
+        if (! $this->getConfig('mailgun.webhook.verify_signature', true)) {
             return $next($request);
         }
 
-        if (config('mailgun.force_signature_testing', false)) {
+        if ($this->getConfig('mailgun.force_signature_testing', false)) {
             return $this->verifySignature($request, $next);
         }
 
@@ -51,61 +51,51 @@ class VerifyMailgunWebhook
      */
     private function verifySignature(Request $request, Closure $next): Response|JsonResponse
     {
-        // Try to get signature parameters from both flat and nested structures
         $timestamp = $request->input('timestamp') ?? $request->input('signature.timestamp');
         $token = $request->input('token') ?? $request->input('signature.token');
 
-        // Handle signature - could be a string (flat) or an object (nested)
         $signatureInput = $request->input('signature');
         if (is_array($signatureInput)) {
-            // Nested structure: signature is an object with timestamp, token, signature
             $signature = $signatureInput['signature'] ?? null;
         } else {
-            // Flat structure: signature is a string
             $signature = $signatureInput;
         }
 
         if (! $timestamp || ! $token || ! $signature) {
-            Log::warning('Mailgun webhook missing required parameters', [
-                'timestamp' => $timestamp,
-                'token' => $token,
-                'signature' => $signature,
-                'request_data' => $request->all(),
-            ]);
-
+            logger()->error('Mailgun webhook missing required parameters');
             return response()->json(['error' => 'Invalid webhook signature'], 401);
         }
 
-        $tolerance = config('mailgun.webhook.timestamp_tolerance', 300);
+        $tolerance = $this->getConfig('mailgun.webhook.timestamp_tolerance', 300);
         if (time() - $timestamp > $tolerance) {
-            Log::warning('Mailgun webhook timestamp too old', [
-                'timestamp' => $timestamp,
-                'current_time' => time(),
-                'tolerance' => $tolerance,
-            ]);
-
+            logger()->error('Mailgun webhook timestamp too old');
             return response()->json(['error' => 'Webhook timestamp too old'], 401);
         }
 
-        $signingKey = config('mailgun.webhook_signing_key');
+        $signingKey = $this->getConfig('mailgun.webhook_signing_key');
         if (! $signingKey) {
-            Log::error('Mailgun webhook signing key not configured');
-
+            logger()->error('Mailgun webhook signing key not configured');
             return response()->json(['error' => 'Webhook signing key not configured'], 500);
         }
 
         $expectedSignature = hash_hmac('sha256', $timestamp.$token, $signingKey);
         if (! hash_equals($expectedSignature, $signature)) {
-            Log::warning('Mailgun webhook signature verification failed', [
-                'expected' => $expectedSignature,
-                'received' => $signature,
-            ]);
-
+            logger()->error('Mailgun webhook signature verification failed');
             return response()->json(['error' => 'Invalid webhook signature'], 401);
         }
 
-        Log::info('Mailgun webhook signature verified successfully');
-
         return $next($request);
+    }
+
+    /**
+     * Get a config value with proper fallback.
+     *
+     * @param  string  $key
+     * @param  mixed  $default
+     * @return mixed
+     */
+    private function getConfig(string $key, $default = null)
+    {
+        return config($key, $default);
     }
 }

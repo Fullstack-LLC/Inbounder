@@ -436,6 +436,7 @@ class MailgunService
     {
         /** Sometimes a webhook doesn't even have user variables. */
         if (! array_key_exists('user_variables', $webhookData) || !is_array($webhookData['user_variables'])) {
+            logger()->notice('Mailgun webhook missing user variables');
             return null;
         }
 
@@ -443,9 +444,13 @@ class MailgunService
          * if the outbound_message_id property doesnt exist, we can return null.
          */
         if (! array_key_exists('outbound_message_id', $webhookData['user_variables'])) {
+            logger()->notice('Mailgun webhook missing outbound message id', [
+                'webhook_data' => $webhookData['user_variables'],
+            ]);
             return null;
         }
 
+        logger()->debug('Mailgun webhook user variables: ' . json_encode($webhookData['user_variables']));
         return MailgunOutboundEmail::where('message_id', $webhookData['user_variables']['outbound_message_id'])->first();
 
     }
