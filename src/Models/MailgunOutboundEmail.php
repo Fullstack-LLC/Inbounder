@@ -35,6 +35,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property \Carbon\Carbon|null $unsubscribed_at
  * @property \Carbon\Carbon|null $created_at
  * @property \Carbon\Carbon|null $updated_at
+ * @property string|null $error
  */
 class MailgunOutboundEmail extends Model
 {
@@ -73,6 +74,7 @@ class MailgunOutboundEmail extends Model
         'complained_at',
         'unsubscribed_at',
         'failed_at',
+        'error',
     ];
 
     /**
@@ -89,6 +91,7 @@ class MailgunOutboundEmail extends Model
         'bounced_at' => 'datetime',
         'complained_at' => 'datetime',
         'unsubscribed_at' => 'datetime',
+        'error' => 'string',
     ];
 
     /**

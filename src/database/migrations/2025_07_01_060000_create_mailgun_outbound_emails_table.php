@@ -35,6 +35,7 @@ return new class extends Migration
             $table->timestamp('complained_at')->nullable();
             $table->timestamp('unsubscribed_at')->nullable();
             $table->timestamp('failed_at')->nullable();
+            $table->text('error')->nullable();
             $table->timestamps();
 
             // Composite indexes for common queries
