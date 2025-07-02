@@ -63,6 +63,8 @@ class MailgunService
 
             $this->processInboundEmail($emailData);
 
+            logger()->info($emailData['sender'] . ' has successfully created a new inbound email.');
+
             return [
                 'status' => 'success',
                 'message' => 'Inbound email processed successfully',
