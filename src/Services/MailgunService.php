@@ -434,15 +434,14 @@ class MailgunService
      */
     private function getInternalMessageId(array $userVariables): ?MailgunOutboundEmail
     {
-        logger()->debug('User variables: ', [
-            'user_variables' => $userVariables['user_variables'],
-            'message_id' => $userVariables['user_variables']['message_id'],
-        ]);
-
-        if (isset($userVariables['user_variables']['message_id'])) {
-            return MailgunOutboundEmail::where('message_id', $userVariables['user_variables']['message_id'])->first();
+        /**
+         * if the outbound_message_id property doesnt exist, we can return null.
+         */
+        if (! array_key_exists('outbound_message_id', $userVariables['user_variables'])) {
+            return null;
         }
 
-        return null;
+        return MailgunOutboundEmail::where('message_id', $userVariables['user_variables']['outbound_message_id'])->first();
+
     }
 }

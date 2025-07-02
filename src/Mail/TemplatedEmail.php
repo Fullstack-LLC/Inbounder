@@ -83,7 +83,7 @@ class TemplatedEmail extends Mailable
             tags: ['outbound'],
             metadata: [
                 'tenant' => 'fullstackllc',
-                'message_id' => $this->messageId,
+                'outbound_message_id' => $this->messageId,
             ],
         );
     }
