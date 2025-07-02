@@ -32,6 +32,11 @@ class TemplatedEmail extends Mailable
     public array $variables;
 
     /**
+     * The tags for Mailgun tracking.
+     */
+    public array $tags;
+
+    /**
      * Create a new message instance.
      */
     public function __construct(
@@ -44,6 +49,7 @@ class TemplatedEmail extends Mailable
 
         $this->template = $rendered['template'];
         $this->variables = $variables;
+        $this->tags = $options['tags'] ?? [];
 
         // Set the subject
         $this->subject($rendered['subject']);
@@ -74,6 +80,19 @@ class TemplatedEmail extends Mailable
         return new Envelope(
             subject: $this->subject,
         );
+    }
+
+    /**
+     * Configure the SwiftMailer message.
+     */
+    public function withSwiftMessage($message)
+    {
+        // Add Mailgun tags if present
+        if (!empty($this->tags)) {
+            $message->getHeaders()->addTextHeader('X-Mailgun-Tag', implode(',', $this->tags));
+        }
+
+        return $this;
     }
 
     /**

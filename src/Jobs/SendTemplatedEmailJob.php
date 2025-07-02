@@ -11,6 +11,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Inbounder\Mail\TemplatedEmail;
 use Inbounder\Models\DistributionList;
@@ -58,48 +59,78 @@ class SendTemplatedEmailJob implements ShouldQueue
      */
     public function handle(): void
     {
-        $template = $this->list->emailTemplate;
+        try {
 
-        if (! $template) {
-            logger()->notice('No template found for list: ' . $this->list->id . '. Skipping email...');
+            $template = $this->list->emailTemplate;
+
+            if (! $template) {
+                logger()->notice('No template found for list: ' . $this->list->id . '. Skipping email...');
+                return;
+            }
+
+            // Start a transaction
+            DB::beginTransaction();
+
+            // Create the outbound email
+            $outboundEmail = MailgunOutboundEmail::create([
+                'message_id' => uniqid('outbound_' . time() . '_', true),
+                'recipient' => $this->user->email,
+                'from_address' => $this->getReplyToAddress(),
+                'from_name' => $this->getFromName(),
+                'distribution_list_id' => $this->list->id,
+                'email_template_id' => $this->list->email_template_id,
+                'user_id' => $this->user->id,
+                'subject' => $this->email->subject,
+                'sent_at' => Carbon::now(),
+                'status' => 'sent',
+                'metadata' => [
+                    'variables' => $this->variables,
+                    'options' => $this->options,
+                ],
+            ]);
+
+            $options = [
+                'from' => [
+                    'name' => $this->getFromName(),
+                    'address' => $this->getReplyToAddress(),
+                ],
+                'reply_to' => [
+                    'name' => $this->getFromName(),
+                    'address' => $this->getReplyToAddress(),
+                ],
+                'tags' => [
+                    'outbound_message_id:' . $outboundEmail->message_id,
+                ],
+            ];
+
+            // Merge options with the default options
+            $options = array_merge($options, $this->options);
+
+            $mailable = new TemplatedEmail($template->slug, $this->variables, $options);
+
+
+            // Send the email
+            Mail::to($this->user->email)->send($mailable);
+
+            // Commit the transaction
+            DB::commit();
+
+        } catch (\Exception $e) {
+
+            // Rollback the transaction
+            DB::rollBack();
+
+            logger()->error('Error sending email: ' . $e->getMessage());
+
+            // Update the outbound email with the error
+            $outboundEmail->status = 'error';
+            $outboundEmail->error = $e->getMessage();
+            $outboundEmail->save();
+
             return;
         }
 
-        $options = [
-            'from' => [
-                'name' => $this->getFromName(),
-                'address' => $this->getReplyToAddress(),
-            ],
-            'reply_to' => [
-                'name' => $this->getFromName(),
-                'address' => $this->getReplyToAddress(),
-            ],
-        ];
 
-        // Merge options with the default options
-        $options = array_merge($options, $this->options);
-
-        $mailable = new TemplatedEmail($template->slug, $this->variables, $options);
-
-        Mail::to($this->user->email)->send($mailable);
-
-        MailgunOutboundEmail::create([
-            'message_id' => uniqid('outbound_' . time() . '_', true),
-            'recipient' => $this->user->email,
-            'from_address' => $this->getReplyToAddress(),
-            'from_name' => $this->getFromName(),
-            'distribution_list_id' => $this->list->id,
-            'email_template_id' => $this->list->email_template_id,
-            'user_id' => $this->user->id,
-
-            'subject' => $mailable->subject,
-            'sent_at' => Carbon::now(),
-            'status' => 'sent',
-            'metadata' => [
-                'variables' => $this->variables,
-                'options' => $this->options,
-            ],
-        ]);
     }
 
     /**
