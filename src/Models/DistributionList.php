@@ -145,8 +145,7 @@ class DistributionList extends Model
      */
     public function activeSubscribers(): HasMany
     {
-        return $this->hasMany(DistributionListSubscriber::class, 'distribution_list_id')
-            ->where('is_active', true);
+        return $this->hasMany(DistributionListSubscriber::class, 'distribution_list_id');
     }
 
     /**
