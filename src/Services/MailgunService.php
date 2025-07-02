@@ -345,7 +345,10 @@ class MailgunService
 
         try {
             $modelClass = $this->getConfig('mailgun.database.webhooks.model');
+
+            logger()->debug('Storing webhook event: ' . json_encode($webhookData));
             $modelClass::create($webhookData);
+
         } catch (\Exception $e) {
             logger()->error('Failed to store webhook event: ' . $e->getMessage());
             throw $e;
