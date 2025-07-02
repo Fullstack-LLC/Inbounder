@@ -52,6 +52,13 @@ class MailgunService
     public function handleInbound(Request $request): array
     {
         try {
+            /** If there is event-data, then it's a webhook and we can safely drop it. */
+            if ($request->input('event-data')) {
+                return [
+                    'status' => 'success',
+                    'message' => 'Webhook received on inbound route, dropping...',
+                ];
+            }
 
             $emailData = $this->parseInboundEmail($request);
 
@@ -103,7 +110,7 @@ class MailgunService
     }
 
     /**
-     * Process the inbound email (add your business logic here).
+     * Process the inbound email
      *
      * @param  array  $emailData  The parsed inbound email data.
      */
@@ -150,12 +157,10 @@ class MailgunService
     public function handleWebhook(Request $request): array
     {
         try {
-            $webhookData = $this->parseWebhookData($request);
-            $this->processWebhook($webhookData);
 
-            logger()->debug('Webhook processed successfully', [
-                'data' => $webhookData,
-            ]);
+            $webhookData = $this->parseWebhookData($request);
+
+            $this->processWebhook($webhookData);
 
             return [
                 'status' => 'success',
