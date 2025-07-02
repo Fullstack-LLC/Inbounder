@@ -434,26 +434,18 @@ class MailgunService
      */
     private function getInternalMessageId(array $webhookData): ?MailgunOutboundEmail
     {
-        /** Sometimes a webhook doesn't even have user variables. */
-        if (! array_key_exists('user_variables', $webhookData) || !is_array($webhookData['user_variables'])) {
-            logger()->notice('Mailgun webhook missing user variables', [
-                'webhook_data' => $webhookData,
-            ]);
+        $json = $webhookData['user_variables'] ?? null;
+
+        if (! $json) {
             return null;
         }
 
-        /**
-         * if the outbound_message_id property doesnt exist, we can return null.
-         */
-        if (! array_key_exists('outbound_message_id', $webhookData['user_variables'])) {
-            logger()->notice('Mailgun webhook missing outbound message id', [
-                'webhook_data' => $webhookData['user_variables'],
-            ]);
+        $userVariables = json_decode($json, true);
+
+        if (! is_array($userVariables) || empty($userVariables['outbound_message_id'])) {
             return null;
         }
 
-        logger()->debug('Mailgun webhook user variables: ' . json_encode($webhookData['user_variables']));
-        return MailgunOutboundEmail::where('message_id', $webhookData['user_variables']['outbound_message_id'])->first();
-
+        return MailgunOutboundEmail::where('message_id', $userVariables['outbound_message_id'])->first();
     }
 }
