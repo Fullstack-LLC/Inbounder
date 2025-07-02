@@ -220,7 +220,7 @@ return [
          * The method to use for authorization.
          * Options: 'gate', 'policy', 'spatie'
          */
-        'method' => 'gate',
+        'method' => 'spatie',
 
         /** The gate name to use for authorization. */
         'gate_name' => 'send-email',
