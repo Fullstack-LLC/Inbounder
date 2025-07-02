@@ -259,23 +259,26 @@ class MailgunService
      */
     private function processWebhook(array $webhookData): void
     {
-        if ($webhookData['message_id']) {
-            try {
+        $outboundMessage = $this->getInternalMessageId($webhookData);
 
-                $outboundEmail = $this->trackingService->getOutboundEmail($webhookData['message_id']);
+        if (! $outboundMessage) {
+            logger()->notice('Unable to match message: ' . $webhookData['message_id'] . ' to an outbound email.');
+            return;
+        }
 
-                if ($this->getConfig('mailgun.database.webhooks.enabled', false)) {
-                    $this->storeWebhookEvent($webhookData);
-                    $this->updateOutboundEmailStatus($outboundEmail, $webhookData['event'], $webhookData);
-                }
+        try {
 
-                $this->dispatchWebhookEvent($webhookData);
-
-            } catch (ModelNotFoundException $e) {
-                logger()->notice('Unable to match message: ' . $webhookData['message_id'] . ' to an outbound email.');
-            } catch (\Exception $e) {
-                throw new MailgunWebhookException('Failed to update outbound email tracking', 0, $e);
+            if ($this->getConfig('mailgun.database.webhooks.enabled', false)) {
+                $this->storeWebhookEvent($webhookData);
+                $this->updateOutboundEmailStatus($outboundMessage, $webhookData['event'], $webhookData);
             }
+
+            $this->dispatchWebhookEvent($webhookData);
+
+        } catch (ModelNotFoundException $e) {
+            logger()->notice('Unable to match message: ' . $webhookData['message_id'] . ' to an outbound email.');
+        } catch (\Exception $e) {
+            throw new MailgunWebhookException('Failed to update outbound email tracking', 0, $e);
         }
 
     }
@@ -421,5 +424,20 @@ class MailgunService
         }
 
         return $user->id;
+    }
+
+    /**
+     * Get the internal message ID from the user variables.
+     *
+     * @param  array  $userVariables  The user variables.
+     * @return MailgunOutboundEmail|null The outbound email record.
+     */
+    private function getInternalMessageId(array $userVariables): ?MailgunOutboundEmail
+    {
+        if (isset($userVariables['user_variables']['message_id'])) {
+            return MailgunOutboundEmail::where('message_id', $userVariables['user_variables']['message_id'])->first();
+        }
+
+        return null;
     }
 }

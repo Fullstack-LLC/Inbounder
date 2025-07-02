@@ -108,10 +108,6 @@ class SendTemplatedEmailJob implements ShouldQueue
                 ],
             ]);
 
-            logger()->info('Sending email to: ' . $this->user->email, [
-                'record' => $outboundEmail,
-            ]);
-
             $mailable = new TemplatedEmail(
                 $uid,
                 $template->slug,
