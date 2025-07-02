@@ -52,6 +52,10 @@ class MailgunService
     public function handleInbound(Request $request): array
     {
         try {
+            logger('handleInbound', [
+                'request' => $request->all(),
+            ]);
+
             $emailData = $this->parseInboundEmail($request);
 
             // Log the headers
