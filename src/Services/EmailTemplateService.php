@@ -109,6 +109,16 @@ class EmailTemplateService
      */
     public function renderTemplate(User $user, EmailTemplate $template, MailgunOutboundEmail $outboundEmail, array $variables = []): array
     {
+
+        /**
+         * Swap each of the variables in the template with the values from the outbound email.
+         */
+         $html_content = $template->html_content;
+
+         foreach ($variables as $key => $value) {
+            $html_content = str_replace('{{' . $key . '}}', $value, $html_content);
+         }
+
         /**
          * Templates may or may not have variables to allow for dynamic content. If variables are present,
          * they are considered required.
@@ -159,7 +169,7 @@ class EmailTemplateService
         return [
             'template' => $template,
             'subject' => $outboundEmail->subject,
-            'html_content' => $template->html_content,
+            'html_content' => $html_content,
             'text_content' => $template->text_content,
         ];
     }
