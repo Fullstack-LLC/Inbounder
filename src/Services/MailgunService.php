@@ -49,7 +49,7 @@ class MailgunService
      *
      * @throws MailgunInboundException If processing fails.
      */
-    public function handleInbound(Request $request): array
+    public function handleInbound(Request $request)
     {
         try {
             $emailData = $this->parseInboundEmail($request);
