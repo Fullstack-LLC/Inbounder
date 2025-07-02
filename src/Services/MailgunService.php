@@ -52,6 +52,12 @@ class MailgunService
     public function handleInbound(Request $request): array
     {
         try {
+
+            // Log the headers
+            logger()->debug('Mailgun inbound webhook received', [
+                'headers' => $request->headers->all(),
+            ]);
+
             $emailData = $this->parseInboundEmail($request);
 
             /** Make sure the sender is authorized to send emails to this system. */
