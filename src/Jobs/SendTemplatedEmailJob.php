@@ -60,6 +60,11 @@ class SendTemplatedEmailJob implements ShouldQueue
     {
         $template = $this->list->emailTemplate;
 
+        if (! $template) {
+            logger()->notice('No template found for list: ' . $this->list->id . '. Skipping email.');
+            return;
+        }
+
         $options = [
             'from' => [
                 'name' => $this->getFromName(),
