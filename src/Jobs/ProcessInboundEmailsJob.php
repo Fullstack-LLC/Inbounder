@@ -36,6 +36,9 @@ class ProcessInboundEmailsJob implements ShouldQueue
 
             foreach ($recipients as $recipient) {
 
+                $list = null;
+                $template = null;
+
                 // Get the Distribution List for the recipient. If it doesn't exist, skip the email.
                 $list = DistributionList::where('inbound_email_address', $recipient)->first();
 
