@@ -20,9 +20,10 @@ return new class extends Migration
             $table->string('from_address')->nullable();
             $table->string('from_name')->nullable();
             $table->string('subject')->nullable();
-            $table->string('template_name')->nullable();
             $table->string('campaign_id')->nullable()->index();
-            $table->string('user_id')->nullable()->index();
+            $table->foreignId('distribution_list_id')->constrained('distribution_lists')->onDelete('cascade');
+            $table->foreignId('email_template_id')->constrained('email_templates')->onDelete('cascade');
+            $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->json('metadata')->nullable();
             $table->string('status')->default('sent')->index();
             $table->timestamp('sent_at')->nullable()->index();

@@ -24,6 +24,9 @@ use Inbounder\Events\DistributionListUpdated;
  * @property array|null $metadata
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
+ * @property string $access_level
+ * @property string $list_type
+ * @property string $email_template_id
  */
 class DistributionList extends Model
 {
@@ -37,12 +40,15 @@ class DistributionList extends Model
     protected $fillable = [
         'name',
         'slug',
-        'email_address',
+        'inbound_email_address',
+        'outbound_email_address',
         'description',
         'is_active',
         'category',
         'metadata',
-        'default_template_id',
+        'email_template_id',
+        'access_level',
+        'list_type',
     ];
 
     /**

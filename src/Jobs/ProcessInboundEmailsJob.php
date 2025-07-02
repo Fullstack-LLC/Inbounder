@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Inbounder\Jobs;
 
+use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -21,56 +22,62 @@ class ProcessInboundEmailsJob implements ShouldQueue
 
     public function handle(): void
     {
+        $queue = $this->getConfig('mailgun.queue.default_queue');
+
+        if ($this->getConfig('mailgun.queue.enabled')) {
+            $queue = $this->getConfig('mailgun.queue.queues.inbound_emails');
+        }
+
         $emails = MailgunInboundEmail::whereNull('processed_at')->get();
+
         foreach ($emails as $email) {
+
             $recipients = array_filter(array_map('trim', explode(',', $email->recipient)));
+
             foreach ($recipients as $recipient) {
-                $list = DistributionList::where('email_address', $recipient)->first();
-                if ($list) {
-                    // Use default_template_id if set, otherwise fallback to slug logic
-                    $template = null;
-                    if ($list->default_template_id) {
-                        $template = EmailTemplate::find($list->default_template_id);
-                        if (!$template) {
-                            Log::warning('default_template_id set but template not found', [
-                                'list_id' => $list->id,
-                                'default_template_id' => $list->default_template_id
-                            ]);
-                        }
-                    }
-                    if (!$template) {
-                        $template = EmailTemplate::where('slug', 'welcome')->first()
-                            ?? EmailTemplate::where('slug', 'newsletter')->first();
-                    }
 
-                    if ($template) {
-                        // Get all active subscribers of this list
-                        $subscribers = $list->activeSubscribers()->get();
+                // Get the Distribution List for the recipient. If it doesn't exist, skip the email.
+                $list = DistributionList::where('inbound_email_address', $recipient)->first();
 
-                        foreach ($subscribers as $subscriber) {
-                            $variables = [
-                                'name' => $subscriber->email,
-                                'first_name' => explode('@', $subscriber->email)[0],
-                                'app_name' => config('app.name', 'Our App'),
-                            ];
+                if (! $list) {
+                    logger()->notice('Distribution List not found for recipient: ' . $recipient . '. Skipping email.');
+                    return;
+                }
 
-                            SendTemplatedEmailJob::dispatch($subscriber->email, $template->slug, $variables, []);
-                            Log::info('Dispatched SendTemplatedEmailJob for subscriber', [
-                                'subscriber_email' => $subscriber->email,
-                                'list_id' => $list->id,
-                                'template' => $template->slug
-                            ]);
-                        }
-                    } else {
-                        Log::warning('No suitable template found for inbound email response', [
-                            'recipient' => $recipient,
-                            'list_id' => $list->id
-                        ]);
-                    }
+                // Get the default template for the list.
+                if ($list->default_template_id) {
+                    $template = EmailTemplate::where('id', $list->default_template_id)->first();
+                }
+
+                if (! $template) {
+                    logger()->notice('No default template found for list: ' . $list->id . '. Skipping email.');
+                    return;
+                }
+
+                // Get all active subscribers of this list
+                $subscribers = $list->activeSubscribers()->get();
+
+                foreach ($subscribers as $subscriber) {
+
+                    $user = User::where('id', $subscriber->user_id)->first();
+
+                    SendTemplatedEmailJob::dispatch($email, $user, $list);
                 }
             }
             $email->processed_at = Carbon::now();
             $email->save();
         }
+    }
+
+    /**
+     * Get a config value with proper fallback.
+     *
+     * @param  string  $key
+     * @param  mixed  $default
+     * @return mixed
+     */
+    private function getConfig(string $key, $default = null)
+    {
+        return config($key, $default);
     }
 }

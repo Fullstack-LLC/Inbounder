@@ -13,18 +13,40 @@ return new class extends Migration
     {
         Schema::create('distribution_lists', function (Blueprint $table) {
             $table->id();
+            $table->boolean('is_active')->default(true);
+
             $table->string('name');
             $table->string('slug')->unique();
-            $table->string('email_address')->nullable();
             $table->text('description')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->string('category')->nullable(); // e.g., 'newsletter', 'marketing', 'support'
-            $table->unsignedBigInteger('default_template_id')->nullable();
-            $table->json('metadata')->nullable(); // Additional list metadata
+
+            /**
+             * The category of the list. Used for filtering and searching.
+             * e.g., 'newsletter', 'marketing', 'support'
+             */
+            $table->string('category')->nullable();
+
+            $table->string('inbound_email_address')->nullable();
+            $table->string('outbound_email_address')->nullable();
+
+            /**
+             * Read-only: Only authenticated users can post to this list. Used for mass announcements, newsletters.
+             * Members: Subscribed members of the list can communicate with each other.
+             * Everyone: Everyone can post to this list. We recommend to turn spam filtering on when using this mode.
+             */
+            $table->enum('access_level', ['read-only', 'members', 'everyone'])->default('read-only');
+
+            /**
+             * List: Reply-to address is the list email address.
+             * Sender: Reply-to address is the sender email address.
+             */
+            $table->enum('list_type', ['list', 'sender'])->default('list');
+
+            $table->foreignId('email_template_id')->constrained('email_templates')->onDelete('set null');
+
+            $table->json('metadata')->nullable();
             $table->timestamps();
 
             $table->index(['is_active', 'category']);
-            $table->foreign('default_template_id')->references('id')->on('email_templates')->onDelete('set null');
         });
     }
 

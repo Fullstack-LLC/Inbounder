@@ -20,8 +20,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $from_address
  * @property string|null $from_name
  * @property string|null $subject
- * @property string|null $template_name
  * @property string|null $campaign_id
+ * @property string|null $distribution_list_id
+ * @property string|null $email_template_id
  * @property string|null $user_id
  * @property array|null $metadata
  * @property string|null $status
@@ -57,8 +58,9 @@ class MailgunOutboundEmail extends Model
         'from_address',
         'from_name',
         'subject',
-        'template_name',
         'campaign_id',
+        'distribution_list_id',
+        'email_template_id',
         'user_id',
         'metadata',
         'status',

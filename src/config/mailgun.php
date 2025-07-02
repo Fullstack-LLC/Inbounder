@@ -260,7 +260,7 @@ return [
         'enabled' => false,
 
         /** The default queue name for email jobs. */
-        'default_queue' => 'mailgun',
+        'default_queue' => 'default',
 
         /** Queue settings for different job types. */
         'queues' => [
