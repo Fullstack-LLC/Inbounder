@@ -56,7 +56,7 @@ class MailgunService
 
             /** Make sure the sender is authorized to send emails to this system. */
             if (! $this->authorizedToSend($emailData['sender'])) {
-                throw new NotAuthorizedToSendException();
+                throw new NotAuthorizedToSendException($emailData['sender']);
             }
 
             $this->processInboundEmail($emailData);
@@ -64,7 +64,6 @@ class MailgunService
             return [
                 'status' => 'success',
                 'message' => 'Inbound email processed successfully',
-                'data' => $emailData,
             ];
         } catch (\Throwable $e) {
             logger()->error($e->getMessage());
@@ -158,7 +157,6 @@ class MailgunService
             return [
                 'status' => 'success',
                 'message' => 'Webhook processed successfully',
-                'data' => $webhookData,
             ];
         } catch (\Throwable $e) {
             throw new MailgunWebhookException('Failed to process webhook: '.$e->getMessage(), 0, $e);
@@ -253,12 +251,6 @@ class MailgunService
                     $webhookData['event'],
                     $webhookData
                 );
-
-                logger()->debug('Outbound email tracking updated', [
-                    'message_id' => $webhookData['message_id'],
-                    'event' => $webhookData['event'],
-                ]);
-
             } catch (\Exception $e) {
                 throw new MailgunWebhookException('Failed to update outbound email tracking', 0, $e);
             }
@@ -462,17 +454,8 @@ class MailgunService
 
         try {
             event(new WebhookEventReceived($eventType, $webhookData, $webhookData));
-
-            Log::info('Webhook event dispatched', [
-                'event_type' => $eventType,
-                'message_id' => $webhookData['message_id'] ?? null,
-                'recipient' => $webhookData['recipient'] ?? null,
-            ]);
         } catch (\Exception $e) {
-            Log::error('Failed to dispatch webhook event', [
-                'event_type' => $eventType,
-                'error' => $e->getMessage(),
-            ]);
+            logger()->error($e->getMessage());
         }
     }
 

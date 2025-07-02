@@ -15,8 +15,8 @@ class NotAuthorizedToSendException extends Exception
     /**
      * Create a new NotAuthorizedToSendException instance.
      */
-    public function __construct()
+    public function __construct($sender)
     {
-        parent::__construct('Sender is not authorized to send emails to this system', 403);
+        parent::__construct($sender . ' is not authorized to send emails to this system', 403);
     }
 }
