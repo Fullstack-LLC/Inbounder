@@ -65,6 +65,12 @@ class SendTemplatedEmailJob implements ShouldQueue
             return;
         }
 
+        // Get the template variables
+        $variables = $template->variables;
+
+        // Merge variables with the default variables
+        $variables = array_merge($variables, $this->variables);
+
         $options = [
             'from' => [
                 'name' => $this->getFromName(),
