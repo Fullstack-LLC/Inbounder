@@ -13,11 +13,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
  *
  * @property int $id
  * @property int $distribution_list_id
- * @property string $email
- * @property string|null $first_name
- * @property string|null $last_name
- * @property bool $is_active
- * @property array|null $metadata
  * @property \Carbon\Carbon $created_at
  * @property \Carbon\Carbon $updated_at
  */
@@ -33,20 +28,8 @@ class DistributionListSubscriber extends Model
     protected $fillable = [
         'distribution_list_id',
         'user_id',
-        'email',
-        'is_active',
-        'metadata',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string, string>
-     */
-    protected $casts = [
-        'is_active' => 'boolean',
-        'metadata' => 'array',
-    ];
 
     /**
      * Get the distribution list this subscriber belongs to.
@@ -77,25 +60,4 @@ class DistributionListSubscriber extends Model
         return $this->email ?: '';
     }
 
-    /**
-     * Scope to get only active subscribers.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    /**
-     * Scope to filter by email domain.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeByDomain($query, string $domain)
-    {
-        return $query->where('email', 'like', "%@{$domain}");
-    }
 }

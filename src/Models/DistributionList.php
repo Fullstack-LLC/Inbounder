@@ -61,7 +61,6 @@ class DistributionList extends Model
         'metadata' => 'array',
     ];
 
-    protected $with = ['emailTemplate'];
 
     public function emailTemplate()
     {
@@ -169,18 +168,16 @@ class DistributionList extends Model
     /**
      * Check if a subscriber exists in this list.
      */
-    public function hasSubscriber(?string $email = null, ?int $userId = null): bool
+    public function hasSubscriber(?int $userId = null): bool
     {
         $query = $this->subscribers();
         if ($userId) {
             $query->where('user_id', $userId);
-        } elseif ($email) {
-            $query->where('email', $email);
         } else {
             return false;
         }
 
-        return $query->where('is_active', true)->exists();
+        return $query->exists();
     }
 
     /**
@@ -191,27 +188,12 @@ class DistributionList extends Model
      */
     public function addSubscriber($data, array $additionalData = []): DistributionListSubscriber
     {
-        // Handle case where email is passed as string
-        if (is_string($data)) {
-            $data = array_merge(['email' => $data], $additionalData);
-        }
+        $subscriber = DistributionListSubscriber::firstOrCreate([
+            'distribution_list_id' => $this->id,
+            'user_id' => $data['user_id'],
+        ], $additionalData);
 
-        $defaults = ['is_active' => true];
-        $mergedData = array_merge($defaults, $data);
-
-        if (isset($mergedData['user_id'])) {
-            return $this->subscribers()->updateOrCreate(
-                ['user_id' => $mergedData['user_id']],
-                $mergedData
-            );
-        } elseif (isset($mergedData['email'])) {
-            return $this->subscribers()->updateOrCreate(
-                ['email' => $mergedData['email']],
-                $mergedData
-            );
-        } else {
-            throw new \InvalidArgumentException('Must provide user_id or email to addSubscriber');
-        }
+        return $subscriber;
     }
 
     /**
