@@ -141,25 +141,7 @@ class MailgunService
 
         $modelClass = $this->getConfig('mailgun.database.inbound.model');
 
-        $modelClass::create([
-            'from' => $emailData['from'],
-            'to' => $emailData['to'],
-            'subject' => $emailData['subject'],
-            'body_plain' => $emailData['body_plain'],
-            'body_html' => $emailData['body_html'],
-            'message_id' => $emailData['message_id'],
-            'timestamp' => $emailData['timestamp'],
-            'token' => $emailData['token'],
-            'signature' => $emailData['signature'],
-            'recipient' => $emailData['recipient'],
-            'sender' => $emailData['sender'],
-            'stripped_text' => $emailData['stripped_text'],
-            'stripped_html' => $emailData['stripped_html'],
-            'stripped_signature' => $emailData['stripped_signature'],
-            'message_headers' => $emailData['message_headers'],
-            'content_id_map' => $emailData['content_id_map'],
-            'raw_data' => $emailData,
-        ]);
+        $modelClass::create($emailData);
 
         event(new InboundEmailReceived($emailData));
     }

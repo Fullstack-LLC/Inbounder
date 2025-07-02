@@ -44,6 +44,7 @@ class MailgunInboundEmail extends Model
         'message_headers',
         'content_id_map',
         'raw_data',
+        'user_id',
     ];
 
     /**
