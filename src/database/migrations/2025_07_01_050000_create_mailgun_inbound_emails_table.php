@@ -20,6 +20,7 @@ return new class extends Migration {
             $table->string('signature')->nullable();
             $table->string('recipient')->nullable();
             $table->string('sender')->nullable();
+            $table->unsignedBigInteger('user_id')->nullable();
             $table->text('stripped_text')->nullable();
             $table->text('stripped_html')->nullable();
             $table->text('stripped_signature')->nullable();
@@ -28,6 +29,9 @@ return new class extends Migration {
             $table->json('raw_data')->nullable();
             $table->timestamp('processed_at')->nullable();
             $table->timestamps();
+
+            // Foreign key to the users table
+            $table->foreign('user_id')->references('id')->on('users');
         });
     }
 

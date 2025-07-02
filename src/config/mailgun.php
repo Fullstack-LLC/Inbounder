@@ -189,6 +189,7 @@ return [
     */
 
     'webhook_events' => [
+
         /** Whether to enable webhook events. */
         'enabled' => true,
 
@@ -216,6 +217,16 @@ return [
     |
     */
     'authorization' => [
+
+        /** Whether to enable authorization. */
+        'enabled' => true,
+
+        /** The user model to use for authorization. */
+        'user_model' => \App\Models\User::class,
+
+        /** The user field to use for authorization. */
+        'user_field' => 'email',
+
         /**
          * The method to use for authorization.
          * Options: 'gate', 'policy', 'spatie'

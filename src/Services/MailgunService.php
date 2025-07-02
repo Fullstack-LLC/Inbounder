@@ -49,7 +49,7 @@ class MailgunService
      *
      * @throws MailgunInboundException If processing fails.
      */
-    public function handleInbound(Request $request)
+    public function handleInbound(Request $request): array
     {
         try {
             $emailData = $this->parseInboundEmail($request);
@@ -67,9 +67,22 @@ class MailgunService
                 'status' => 'success',
                 'message' => 'Inbound email processed successfully',
             ];
+        } catch (NotAuthorizedToSendException $e) {
+
+            logger()->notice($e->getMessage());
+
+            return [
+                'status' => 'unauthorized',
+                'message' => $e->getMessage(),
+            ];
         } catch (\Throwable $e) {
+
             logger()->error($e->getMessage());
-            //throw new MailgunInboundException('Failed to process inbound email: '.$e->getMessage(), 0, $e);
+
+            return [
+                'status' => 'error',
+                'message' => $e->getMessage(),
+            ];
         }
     }
 
@@ -81,9 +94,15 @@ class MailgunService
      */
     private function parseInboundEmail(Request $request): array
     {
+        $userId = $this->getUserId($request->input('sender'));
+
+        if ($userId === 0) {
+            throw new NotAuthorizedToSendException(strtolower($request->input('sender')));
+        }
+
         return [
-            'from' => $request->input('from'),
-            'to' => $request->input('To') ?? $request->input('to') ?? $request->input('recipient'),
+            'from' => strtolower($request->input('from')),
+            'to' => strtolower($request->input('To')) ?? strtolower($request->input('to')) ?? strtolower($request->input('recipient')),
             'subject' => $request->input('subject'),
             'body_plain' => $request->input('body-plain'),
             'body_html' => $request->input('body-html'),
@@ -92,8 +111,9 @@ class MailgunService
             'token' => $request->input('token'),
             'signature' => $request->input('signature'),
             'attachments' => $request->file('attachment') ?? [],
-            'recipient' => $request->input('recipient'),
-            'sender' => $request->input('sender'),
+            'recipient' => strtolower($request->input('recipient')),
+            'user_id' => $userId,
+            'sender' => strtolower($request->input('sender')),
             'stripped_text' => $request->input('stripped-text'),
             'stripped_html' => $request->input('stripped-html'),
             'stripped_signature' => $request->input('stripped-signature'),
@@ -112,30 +132,32 @@ class MailgunService
     {
         $inboundEnabled = $this->getConfig('mailgun.database.inbound.enabled', false);
 
-        if ($inboundEnabled) {
-
-            $modelClass = $this->getConfig('mailgun.database.inbound.model');
-
-            $modelClass::create([
-                'from' => $emailData['from'],
-                'to' => $emailData['to'],
-                'subject' => $emailData['subject'],
-                'body_plain' => $emailData['body_plain'],
-                'body_html' => $emailData['body_html'],
-                'message_id' => $emailData['message_id'],
-                'timestamp' => $emailData['timestamp'],
-                'token' => $emailData['token'],
-                'signature' => $emailData['signature'],
-                'recipient' => $emailData['recipient'],
-                'sender' => $emailData['sender'],
-                'stripped_text' => $emailData['stripped_text'],
-                'stripped_html' => $emailData['stripped_html'],
-                'stripped_signature' => $emailData['stripped_signature'],
-                'message_headers' => $emailData['message_headers'],
-                'content_id_map' => $emailData['content_id_map'],
-                'raw_data' => $emailData,
-            ]);
+        if (! $inboundEnabled) {
+            logger()->debug('Inbound emails are disabled.');
+            return;
         }
+
+        $modelClass = $this->getConfig('mailgun.database.inbound.model');
+
+        $modelClass::create([
+            'from' => $emailData['from'],
+            'to' => $emailData['to'],
+            'subject' => $emailData['subject'],
+            'body_plain' => $emailData['body_plain'],
+            'body_html' => $emailData['body_html'],
+            'message_id' => $emailData['message_id'],
+            'timestamp' => $emailData['timestamp'],
+            'token' => $emailData['token'],
+            'signature' => $emailData['signature'],
+            'recipient' => $emailData['recipient'],
+            'sender' => $emailData['sender'],
+            'stripped_text' => $emailData['stripped_text'],
+            'stripped_html' => $emailData['stripped_html'],
+            'stripped_signature' => $emailData['stripped_signature'],
+            'message_headers' => $emailData['message_headers'],
+            'content_id_map' => $emailData['content_id_map'],
+            'raw_data' => $emailData,
+        ]);
 
         event(new InboundEmailReceived($emailData));
     }
@@ -517,37 +539,70 @@ class MailgunService
      */
     private function authorizedToSend(string $from): bool
     {
+        $authorizationEnabled = $this->getConfig('mailgun.authorization.enabled', false);
+
+        if (! $authorizationEnabled) {
+            return true;
+        }
+
         $userModel = $this->getConfig('mailgun.user_model', \App\Models\User::class);
 
-        if (!class_exists($userModel)) {
+        if (! class_exists($userModel)) {
             return false;
         }
 
-        $user = $userModel::where('email', $from)->first();
+        $user = $userModel::where($this->getConfig('mailgun.authorization.user_field'), $from)->first();
 
         if (!$user) {
             return false;
         }
 
         $method = $this->getConfig('mailgun.authorization.method');
-        $gateName = $this->getConfig('mailgun.authorization.gate_name');
-        $policyMethod = $this->getConfig('mailgun.authorization.policy_method');
-        $spatiePermission = $this->getConfig('mailgun.authorization.spatie_permission');
 
         switch ($method) {
             case 'none':
                 return true;
             case 'spatie':
+                $spatiePermission = $this->getConfig('mailgun.authorization.spatie_permission');
+
                 return method_exists($user, 'hasPermissionTo')
                     ? $user->hasPermissionTo($spatiePermission)
                     : false;
             case 'policy':
+                $policyMethod = $this->getConfig('mailgun.authorization.policy_method');
+
                 return method_exists($user, 'can')
                     ? $user->can($policyMethod)
                     : false;
             case 'gate':
+                $gateName = $this->getConfig('mailgun.authorization.gate_name');
+                return Gate::allows($gateName, $user);
             default:
+                $gateName = $this->getConfig('mailgun.authorization.gate_name');
                 return Gate::allows($gateName, $user);
         }
+    }
+
+    /**
+     * Get the user ID from the sender's email address.
+     *
+     * @param  string  $from  The sender's email address.
+     * @return int The user ID.
+     */
+    private function getUserId(string $from): int
+    {
+        $userModel = $this->getConfig('mailgun.user_model', \App\Models\User::class);
+
+        if (!class_exists($userModel)) {
+            return 0;
+        }
+
+        $user = $userModel::where('email', $from)->first();
+
+        if (!$user) {
+            return 0;
+        }
+
+        return $user->id;
     }
 }
