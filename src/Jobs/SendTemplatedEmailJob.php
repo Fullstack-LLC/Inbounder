@@ -61,6 +61,8 @@ class SendTemplatedEmailJob implements ShouldQueue
     {
         try {
 
+            $uid = uniqid('outbound_' . time() . '_', true);
+
             $template = $this->list->emailTemplate;
 
             if (! $template) {
@@ -68,12 +70,29 @@ class SendTemplatedEmailJob implements ShouldQueue
                 return;
             }
 
+            $options = [
+                'from' => [
+                    'name' => $this->getFromName(),
+                    'address' => $this->getReplyToAddress(),
+                ],
+                'reply_to' => [
+                    'name' => $this->getFromName(),
+                    'address' => $this->getReplyToAddress(),
+                ],
+                'tags' => [
+                    'outbound_message_id:' . $uid,
+                ],
+            ];
+
+            // Merge options with the default options
+            $this->options = array_merge($this->options, $options);
+
             // Start a transaction
             DB::beginTransaction();
 
             // Create the outbound email
             $outboundEmail = MailgunOutboundEmail::create([
-                'message_id' => uniqid('outbound_' . time() . '_', true),
+                'message_id' => $uid,
                 'recipient' => $this->user->email,
                 'from_address' => $this->getReplyToAddress(),
                 'from_name' => $this->getFromName(),
@@ -89,24 +108,12 @@ class SendTemplatedEmailJob implements ShouldQueue
                 ],
             ]);
 
-            $options = [
-                'from' => [
-                    'name' => $this->getFromName(),
-                    'address' => $this->getReplyToAddress(),
-                ],
-                'reply_to' => [
-                    'name' => $this->getFromName(),
-                    'address' => $this->getReplyToAddress(),
-                ],
-                'tags' => [
-                    'outbound_message_id:' . $outboundEmail->message_id,
-                ],
-            ];
-
-            // Merge options with the default options
-            $options = array_merge($options, $this->options);
-
-            $mailable = new TemplatedEmail($template->slug, $this->variables, $options);
+            $mailable = new TemplatedEmail(
+                $uid,
+                $template->slug,
+                $this->variables,
+                $this->options
+            );
 
 
             // Send the email
