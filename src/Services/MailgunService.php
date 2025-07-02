@@ -52,18 +52,6 @@ class MailgunService
     public function handleInbound(Request $request): array
     {
         try {
-            /** If there is event-data, then it's a webhook and we can safely drop it. */
-            if ($request->input('event-data')) {
-                logger()->debug('Webhook received on inbound route, dropping...', [
-                    'data' => $request->all(),
-                ]);
-
-                return [
-                    'status' => 'success',
-                    'message' => 'Webhook received on inbound route, dropping...',
-                ];
-            }
-
             $emailData = $this->parseInboundEmail($request);
 
             /** Make sure the sender is authorized to send emails to this system. */
@@ -79,7 +67,8 @@ class MailgunService
                 'data' => $emailData,
             ];
         } catch (\Throwable $e) {
-            throw new MailgunInboundException('Failed to process inbound email: '.$e->getMessage(), 0, $e);
+            logger()->error($e->getMessage());
+            //throw new MailgunInboundException('Failed to process inbound email: '.$e->getMessage(), 0, $e);
         }
     }
 
