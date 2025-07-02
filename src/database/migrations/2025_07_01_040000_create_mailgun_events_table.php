@@ -41,11 +41,11 @@ return new class extends Migration
             $table->timestamps();
 
             // Indexes for common queries
-            $table->index('event_type');
+            $table->index('event');
             $table->index('message_id');
             $table->index('recipient');
             $table->index('event_timestamp');
-            $table->index(['event_type', 'event_timestamp']);
+            $table->index(['event', 'event_timestamp']);
         });
     }
 
