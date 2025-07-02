@@ -9,12 +9,24 @@ use Illuminate\Support\Facades\Gate;
 
 trait CanSendEmails
 {
+    /**
+     * Get a config value with proper fallback.
+     *
+     * @param  string  $key
+     * @param  mixed  $default
+     * @return mixed
+     */
+    private function getConfig(string $key, $default = null)
+    {
+        return config($key, $default);
+    }
+
     public function canSendEmails(): bool
     {
-        $method = Config::get('mailgun.authorization.method', 'gate');
-        $gateName = Config::get('mailgun.authorization.gate_name', 'send-email');
-        $policyMethod = Config::get('mailgun.authorization.policy_method', 'sendEmail');
-        $spatiePermission = Config::get('mailgun.authorization.spatie_permission', 'send email');
+        $method = $this->getConfig('mailgun.authorization.method', 'gate');
+        $gateName = $this->getConfig('mailgun.authorization.gate_name', 'send-email');
+        $policyMethod = $this->getConfig('mailgun.authorization.policy_method', 'sendEmail');
+        $spatiePermission = $this->getConfig('mailgun.authorization.spatie_permission', 'send email');
 
         switch ($method) {
             case 'none':

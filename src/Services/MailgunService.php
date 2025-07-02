@@ -10,9 +10,12 @@ use Inbounder\Events\InboundEmailReceived;
 use Inbounder\Events\WebhookEventReceived;
 use Inbounder\Exceptions\MailgunInboundException;
 use Inbounder\Exceptions\MailgunWebhookException;
+use Inbounder\Traits\CanSendEmails;
 
 class MailgunService
 {
+    use CanSendEmails;
+
     /**
      * The tracking service instance.
      */
@@ -27,6 +30,18 @@ class MailgunService
     }
 
     /**
+     * Get a config value with proper fallback.
+     *
+     * @param  string  $key
+     * @param  mixed  $default
+     * @return mixed
+     */
+    private function getConfig(string $key, $default = null)
+    {
+        return config($key, $default);
+    }
+
+    /**
      * Handle inbound emails from Mailgun.
      *
      * @param  Request  $request  The inbound email HTTP request from Mailgun.
@@ -37,13 +52,19 @@ class MailgunService
     public function handleInbound(Request $request): array
     {
         try {
-            Log::info('Mailgun inbound webhook received', [
-                'from' => $request->input('from'),
-                'to' => $request->input('recipient') ?? $request->input('To') ?? $request->input('to'),
-                'subject' => $request->input('subject'),
-            ]);
-
             $emailData = $this->parseInboundEmail($request);
+
+            // Validate that the sender is authorized to send emails
+            if (!$this->isAuthorized($emailData['from'])) {
+                Log::warning('Unauthorized inbound email rejected', [
+                    'from' => $emailData['from'],
+                    'to' => $emailData['to'],
+                    'subject' => $emailData['subject'],
+                ]);
+
+                throw new MailgunInboundException('Sender is not authorized to send emails to this system', 403, new \Exception('Authorization failed'));
+            }
+
             $this->processInboundEmail($emailData);
 
             return [
@@ -57,47 +78,6 @@ class MailgunService
                 'trace' => $e->getTraceAsString(),
             ]);
             throw new MailgunInboundException('Failed to process inbound email: '.$e->getMessage(), 0, $e);
-        }
-    }
-
-    /**
-     * Handle webhooks from Mailgun (delivery, bounces, etc.).
-     *
-     * @param  Request  $request  The webhook HTTP request from Mailgun.
-     * @return array The result of processing the webhook.
-     *
-     * @throws MailgunWebhookException If processing fails.
-     */
-    public function handleWebhook(Request $request): array
-    {
-        try {
-            if (config('app.debug') || config('mailgun.logging.level') === 'debug') {
-                Log::info('Mailgun webhook received', [
-                    'headers' => $request->headers->all(),
-                    'body' => $request->all(),
-                ]);
-            } else {
-                Log::info('Mailgun webhook received', [
-                    'event' => $request->input('event-data.event'),
-                    'message_id' => $request->input('event-data.message.headers.message-id'),
-                    'recipient' => $request->input('event-data.recipient'),
-                ]);
-            }
-
-            $webhookData = $this->parseWebhookData($request);
-            $this->processWebhook($webhookData);
-
-            return [
-                'status' => 'success',
-                'message' => 'Webhook processed successfully',
-                'data' => $webhookData,
-            ];
-        } catch (\Throwable $e) {
-            Log::error('Error processing Mailgun webhook', [
-                'error' => $e->getMessage(),
-                'trace' => $e->getTraceAsString(),
-            ]);
-            throw new MailgunWebhookException('Failed to process webhook: '.$e->getMessage(), 0, $e);
         }
     }
 
@@ -129,6 +109,84 @@ class MailgunService
             'content_id_map' => $request->input('content-id-map'),
             'raw_data' => $request->all(),
         ];
+    }
+
+    /**
+     * Process the inbound email (add your business logic here).
+     *
+     * @param  array  $emailData  The parsed inbound email data.
+     */
+    private function processInboundEmail(array $emailData): void
+    {
+        $inboundEnabled = $this->getConfig('mailgun.database.inbound.enabled', false);
+
+        if ($inboundEnabled) {
+
+            $modelClass = $this->getConfig('mailgun.database.inbound.model');
+
+            $modelClass::create([
+                'from' => $emailData['from'],
+                'to' => $emailData['to'],
+                'subject' => $emailData['subject'],
+                'body_plain' => $emailData['body_plain'],
+                'body_html' => $emailData['body_html'],
+                'message_id' => $emailData['message_id'],
+                'timestamp' => $emailData['timestamp'],
+                'token' => $emailData['token'],
+                'signature' => $emailData['signature'],
+                'recipient' => $emailData['recipient'],
+                'sender' => $emailData['sender'],
+                'stripped_text' => $emailData['stripped_text'],
+                'stripped_html' => $emailData['stripped_html'],
+                'stripped_signature' => $emailData['stripped_signature'],
+                'message_headers' => $emailData['message_headers'],
+                'content_id_map' => $emailData['content_id_map'],
+                'raw_data' => $emailData,
+            ]);
+        }
+
+        event(new InboundEmailReceived($emailData));
+    }
+
+    /**
+     * Handle webhooks from Mailgun (delivery, bounces, etc.).
+     *
+     * @param  Request  $request  The webhook HTTP request from Mailgun.
+     * @return array The result of processing the webhook.
+     *
+     * @throws MailgunWebhookException If processing fails.
+     */
+    public function handleWebhook(Request $request): array
+    {
+        try {
+            if ($this->getConfig('app.debug') || $this->getConfig('mailgun.logging.level') === 'debug') {
+                Log::info('Mailgun webhook received', [
+                    'headers' => $request->headers->all(),
+                    'body' => $request->all(),
+                ]);
+            } else {
+                Log::info('Mailgun webhook received', [
+                    'event' => $request->input('event-data.event'),
+                    'message_id' => $request->input('event-data.message.headers.message-id'),
+                    'recipient' => $request->input('event-data.recipient'),
+                ]);
+            }
+
+            $webhookData = $this->parseWebhookData($request);
+            $this->processWebhook($webhookData);
+
+            return [
+                'status' => 'success',
+                'message' => 'Webhook processed successfully',
+                'data' => $webhookData,
+            ];
+        } catch (\Throwable $e) {
+            Log::error('Error processing Mailgun webhook', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+            throw new MailgunWebhookException('Failed to process webhook: '.$e->getMessage(), 0, $e);
+        }
     }
 
     /**
@@ -206,47 +264,6 @@ class MailgunService
     }
 
     /**
-     * Process the inbound email (add your business logic here).
-     *
-     * @param  array  $emailData  The parsed inbound email data.
-     */
-    private function processInboundEmail(array $emailData): void
-    {
-        Log::info('Processing inbound email', [
-            'from' => $emailData['from'],
-            'to' => $emailData['to'],
-            'subject' => $emailData['subject'],
-            'message_id' => $emailData['message_id'],
-        ]);
-
-        if (config('mailgun.database.inbound.enabled', false)) {
-            $modelClass = config('mailgun.database.inbound.model');
-            $modelClass::create([
-                'from' => $emailData['from'],
-                'to' => $emailData['to'],
-                'subject' => $emailData['subject'],
-                'body_plain' => $emailData['body_plain'],
-                'body_html' => $emailData['body_html'],
-                'message_id' => $emailData['message_id'],
-                'timestamp' => $emailData['timestamp'],
-                'token' => $emailData['token'],
-                'signature' => $emailData['signature'],
-                'recipient' => $emailData['recipient'],
-                'sender' => $emailData['sender'],
-                'stripped_text' => $emailData['stripped_text'],
-                'stripped_html' => $emailData['stripped_html'],
-                'stripped_signature' => $emailData['stripped_signature'],
-                'message_headers' => $emailData['message_headers'],
-                'content_id_map' => $emailData['content_id_map'],
-                'raw_data' => $emailData,
-            ]);
-        }
-
-        // Dispatch the inbound email received event
-        event(new InboundEmailReceived($emailData));
-    }
-
-    /**
      * Process the webhook (add your business logic here).
      *
      * @param  array  $webhookData  The parsed webhook data.
@@ -276,7 +293,7 @@ class MailgunService
             }
         }
 
-        if (config('mailgun.database.webhooks.enabled', false)) {
+        if ($this->getConfig('mailgun.database.webhooks.enabled', false)) {
             $this->storeWebhookEvent($webhookData);
         }
 
@@ -460,7 +477,7 @@ class MailgunService
      */
     private function dispatchWebhookEvent(array $webhookData): void
     {
-        $webhookEventsConfig = config('mailgun.webhook_events', []);
+        $webhookEventsConfig = $this->getConfig('mailgun.webhook_events', []);
 
         if (! ($webhookEventsConfig['enabled'] ?? true)) {
             return;
@@ -498,13 +515,13 @@ class MailgunService
      */
     private function storeWebhookEvent(array $webhookData): void
     {
-        $storeEvents = config('mailgun.database.webhooks.store_events', []);
+        $storeEvents = $this->getConfig('mailgun.database.webhooks.store_events', []);
         if (! in_array($webhookData['event'], $storeEvents)) {
             return;
         }
 
         try {
-            $modelClass = config('mailgun.database.webhooks.model');
+            $modelClass = $this->getConfig('mailgun.database.webhooks.model');
             $modelClass::create([
                 'event_type' => $webhookData['event'] ?? null,
                 'message_id' => $webhookData['message_id'] ?? null,
@@ -535,5 +552,143 @@ class MailgunService
         } catch (\Exception $e) {
             throw $e;
         }
+    }
+
+    /**
+     * Check if the sender is authorized to send emails to this system.
+     *
+     * @param  string  $from  The sender's email address.
+     * @return bool True if authorized, false otherwise.
+     */
+    private function isAuthorized(string $from): bool
+    {
+        $authorizationMethod = $this->getConfig('mailgun.inbound.authorization.method', 'whitelist');
+
+        switch ($authorizationMethod) {
+            case 'none':
+                return true;
+
+            case 'whitelist':
+                return $this->isSenderInWhitelist($from);
+
+            case 'domain':
+                return $this->isSenderDomainAuthorized($from);
+
+            case 'user':
+                return $this->isSenderUserAuthorized($from);
+
+            case 'custom':
+                return $this->callCustomAuthorization($from);
+
+            default:
+                Log::warning('Unknown inbound authorization method', ['method' => $authorizationMethod]);
+                return false;
+        }
+    }
+
+    /**
+     * Check if sender is in the whitelist.
+     *
+     * @param  string  $from  The sender's email address.
+     * @return bool True if in whitelist, false otherwise.
+     */
+    private function isSenderInWhitelist(string $from): bool
+    {
+        $whitelist = $this->getConfig('mailgun.inbound.authorization.whitelist', []);
+
+        // Check exact email match
+        if (in_array($from, $whitelist)) {
+            return true;
+        }
+
+        // Check domain match
+        $domain = $this->extractDomain($from);
+        if (in_array('@' . $domain, $whitelist)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Check if sender's domain is authorized.
+     *
+     * @param  string  $from  The sender's email address.
+     * @return bool True if domain is authorized, false otherwise.
+     */
+    private function isSenderDomainAuthorized(string $from): bool
+    {
+        $authorizedDomains = $this->getConfig('mailgun.inbound.authorization.authorized_domains', []);
+        $domain = $this->extractDomain($from);
+
+        return in_array($domain, $authorizedDomains);
+    }
+
+    /**
+     * Check if sender is an authorized user.
+     *
+     * @param  string  $from  The sender's email address.
+     * @return bool True if user is authorized, false otherwise.
+     */
+    private function isSenderUserAuthorized(string $from): bool
+    {
+        $userModel = $this->getConfig('mailgun.user_model', \App\Models\User::class);
+
+        if (!class_exists($userModel)) {
+            Log::warning('User model not found for inbound authorization', ['model' => $userModel]);
+            return false;
+        }
+
+        $user = $userModel::where('email', $from)->first();
+
+        if (!$user) {
+            return false;
+        }
+
+        // Check if user has the required permission/trait
+        if (method_exists($user, 'canSendEmails')) {
+            return $user->canSendEmails();
+        }
+
+        // If no specific method, assume authorized if user exists
+        return true;
+    }
+
+    /**
+     * Call custom authorization callback.
+     *
+     * @param  string  $from  The sender's email address.
+     * @return bool True if authorized, false otherwise.
+     */
+    private function callCustomAuthorization(string $from): bool
+    {
+        $callback = $this->getConfig('mailgun.inbound.authorization.custom_callback');
+
+        if (!is_callable($callback)) {
+            Log::warning('Custom authorization callback is not callable');
+            return false;
+        }
+
+        try {
+            return (bool) call_user_func($callback, $from);
+        } catch (\Exception $e) {
+            Log::error('Error in custom authorization callback', [
+                'error' => $e->getMessage(),
+                'from' => $from,
+            ]);
+            return false;
+        }
+    }
+
+    /**
+     * Extract domain from email address.
+     *
+     * @param  string  $email  The email address.
+     * @return string The domain.
+     */
+    private function extractDomain(string $email): string
+    {
+        $parts = explode('@', $email);
+        return end($parts);
     }
 }
