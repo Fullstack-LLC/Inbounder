@@ -232,39 +232,7 @@ return [
         'spatie_permission' => 'send email',
     ],
 
-    /*
-    |--------------------------------------------------------------------------
-    | Inbound Email Authorization Settings
-    |--------------------------------------------------------------------------
-    |
-    | Configure how to validate that inbound email senders are authorized.
-    | Options: 'none', 'whitelist', 'domain', 'user', 'custom'
-    |
-    */
-    'inbound' => [
-        'authorization' => [
-            /**
-             * The method to use for inbound email authorization.
-             * Options: 'none', 'whitelist', 'domain', 'user', 'custom'
-             */
-            'method' => 'whitelist',
 
-            /** List of authorized email addresses and domains. */
-            'whitelist' => [
-                // 'user@example.com',
-                // '@trusted-domain.com',
-            ],
-
-            /** List of authorized domains only. */
-            'authorized_domains' => [
-                // 'example.com',
-                // 'trusted-domain.com',
-            ],
-
-            /** Custom authorization callback function. */
-            'custom_callback' => null,
-        ],
-    ],
 
     /*
     |--------------------------------------------------------------------------

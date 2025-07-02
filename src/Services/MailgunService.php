@@ -10,7 +10,8 @@ use Inbounder\Events\InboundEmailReceived;
 use Inbounder\Events\WebhookEventReceived;
 use Inbounder\Exceptions\MailgunInboundException;
 use Inbounder\Exceptions\MailgunWebhookException;
-use Inbounder\Traits\CanSendEmails;
+
+use Illuminate\Support\Facades\Gate;
 
 class MailgunService
 {
@@ -562,76 +563,6 @@ class MailgunService
      */
     private function isAuthorized(string $from): bool
     {
-        $authorizationMethod = $this->getConfig('mailgun.inbound.authorization.method', 'whitelist');
-
-        switch ($authorizationMethod) {
-            case 'none':
-                return true;
-
-            case 'whitelist':
-                return $this->isSenderInWhitelist($from);
-
-            case 'domain':
-                return $this->isSenderDomainAuthorized($from);
-
-            case 'user':
-                return $this->isSenderUserAuthorized($from);
-
-            case 'custom':
-                return $this->callCustomAuthorization($from);
-
-            default:
-                Log::warning('Unknown inbound authorization method', ['method' => $authorizationMethod]);
-                return false;
-        }
-    }
-
-    /**
-     * Check if sender is in the whitelist.
-     *
-     * @param  string  $from  The sender's email address.
-     * @return bool True if in whitelist, false otherwise.
-     */
-    private function isSenderInWhitelist(string $from): bool
-    {
-        $whitelist = $this->getConfig('mailgun.inbound.authorization.whitelist', []);
-
-        // Check exact email match
-        if (in_array($from, $whitelist)) {
-            return true;
-        }
-
-        // Check domain match
-        $domain = $this->extractDomain($from);
-        if (in_array('@' . $domain, $whitelist)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    /**
-     * Check if sender's domain is authorized.
-     *
-     * @param  string  $from  The sender's email address.
-     * @return bool True if domain is authorized, false otherwise.
-     */
-    private function isSenderDomainAuthorized(string $from): bool
-    {
-        $authorizedDomains = $this->getConfig('mailgun.inbound.authorization.authorized_domains', []);
-        $domain = $this->extractDomain($from);
-
-        return in_array($domain, $authorizedDomains);
-    }
-
-    /**
-     * Check if sender is an authorized user.
-     *
-     * @param  string  $from  The sender's email address.
-     * @return bool True if user is authorized, false otherwise.
-     */
-    private function isSenderUserAuthorized(string $from): bool
-    {
         $userModel = $this->getConfig('mailgun.user_model', \App\Models\User::class);
 
         if (!class_exists($userModel)) {
@@ -642,53 +573,30 @@ class MailgunService
         $user = $userModel::where('email', $from)->first();
 
         if (!$user) {
+            Log::info('Sender not found in user database', ['email' => $from]);
             return false;
         }
 
-        // Check if user has the required permission/trait
-        if (method_exists($user, 'canSendEmails')) {
-            return $user->canSendEmails();
+        // Use the same authorization logic as the CanSendEmails trait
+        $method = $this->getConfig('mailgun.authorization.method', 'gate');
+        $gateName = $this->getConfig('mailgun.authorization.gate_name', 'send-email');
+        $policyMethod = $this->getConfig('mailgun.authorization.policy_method', 'sendEmail');
+        $spatiePermission = $this->getConfig('mailgun.authorization.spatie_permission', 'send email');
+
+        switch ($method) {
+            case 'none':
+                return true;
+            case 'spatie':
+                return method_exists($user, 'hasPermissionTo')
+                    ? $user->hasPermissionTo($spatiePermission)
+                    : false;
+            case 'policy':
+                return method_exists($user, 'can')
+                    ? $user->can($policyMethod)
+                    : false;
+            case 'gate':
+            default:
+                return Gate::allows($gateName, $user);
         }
-
-        // If no specific method, assume authorized if user exists
-        return true;
-    }
-
-    /**
-     * Call custom authorization callback.
-     *
-     * @param  string  $from  The sender's email address.
-     * @return bool True if authorized, false otherwise.
-     */
-    private function callCustomAuthorization(string $from): bool
-    {
-        $callback = $this->getConfig('mailgun.inbound.authorization.custom_callback');
-
-        if (!is_callable($callback)) {
-            Log::warning('Custom authorization callback is not callable');
-            return false;
-        }
-
-        try {
-            return (bool) call_user_func($callback, $from);
-        } catch (\Exception $e) {
-            Log::error('Error in custom authorization callback', [
-                'error' => $e->getMessage(),
-                'from' => $from,
-            ]);
-            return false;
-        }
-    }
-
-    /**
-     * Extract domain from email address.
-     *
-     * @param  string  $email  The email address.
-     * @return string The domain.
-     */
-    private function extractDomain(string $email): string
-    {
-        $parts = explode('@', $email);
-        return end($parts);
     }
 }
