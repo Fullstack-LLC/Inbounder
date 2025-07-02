@@ -55,8 +55,10 @@ class MailgunService
             $emailData = $this->parseInboundEmail($request);
 
             /** Make sure the sender is authorized to send emails to this system. */
-            if (! $this->authorizedToSend($emailData['sender'])) {
-                throw new NotAuthorizedToSendException($emailData['sender']);
+            $from = strtolower($emailData['sender']);
+
+            if (! $this->authorizedToSend($from)) {
+                throw new NotAuthorizedToSendException($from);
             }
 
             $this->processInboundEmail($emailData);
