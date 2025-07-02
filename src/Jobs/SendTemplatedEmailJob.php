@@ -108,6 +108,10 @@ class SendTemplatedEmailJob implements ShouldQueue
                 ],
             ]);
 
+            logger()->info('Sending email to: ' . $this->user->email, [
+                'record' => $outboundEmail,
+            ]);
+
             $mailable = new TemplatedEmail(
                 $uid,
                 $template->slug,
@@ -121,6 +125,8 @@ class SendTemplatedEmailJob implements ShouldQueue
 
             // Commit the transaction
             DB::commit();
+
+            logger()->info('Email sent to: ' . $this->user->email);
 
         } catch (\Exception $e) {
 
