@@ -53,7 +53,7 @@ class ProcessInboundEmailsJob implements ShouldQueue
 
                     $user = User::where('id', $subscriber->user_id)->first();
 
-                    SendTemplatedEmailJob::dispatch($email, $user, $list);
+                    //SendTemplatedEmailJob::dispatch($email, $user, $list);
                 }
             }
             $email->processed_at = Carbon::now();
