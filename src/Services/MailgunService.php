@@ -5,18 +5,17 @@ declare(strict_types=1);
 namespace Inbounder\Services;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Inbounder\Events\InboundEmailReceived;
 use Inbounder\Events\WebhookEventReceived;
 use Inbounder\Exceptions\MailgunInboundException;
-use Inbounder\Exceptions\MailgunWebhookException;
 
-use Illuminate\Support\Facades\Gate;
+use Inbounder\Exceptions\MailgunWebhookException;
+use Inbounder\Exceptions\NotAuthorizedToSendException;
 
 class MailgunService
 {
-    use CanSendEmails;
-
     /**
      * The tracking service instance.
      */
@@ -55,15 +54,9 @@ class MailgunService
         try {
             $emailData = $this->parseInboundEmail($request);
 
-            // Validate that the sender is authorized to send emails
-            if (!$this->isAuthorized($emailData['from'])) {
-                Log::warning('Unauthorized inbound email rejected', [
-                    'from' => $emailData['from'],
-                    'to' => $emailData['to'],
-                    'subject' => $emailData['subject'],
-                ]);
-
-                throw new MailgunInboundException('Sender is not authorized to send emails to this system', 403, new \Exception('Authorization failed'));
+            /** Make sure the sender is authorized to send emails to this system. */
+            if (! $this->authorizedToSend($emailData['from'])) {
+                throw new NotAuthorizedToSendException();
             }
 
             $this->processInboundEmail($emailData);
@@ -561,12 +554,11 @@ class MailgunService
      * @param  string  $from  The sender's email address.
      * @return bool True if authorized, false otherwise.
      */
-    private function isAuthorized(string $from): bool
+    private function authorizedToSend(string $from): bool
     {
         $userModel = $this->getConfig('mailgun.user_model', \App\Models\User::class);
 
         if (!class_exists($userModel)) {
-            Log::warning('User model not found for inbound authorization', ['model' => $userModel]);
             return false;
         }
 
