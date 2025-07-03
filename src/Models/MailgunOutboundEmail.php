@@ -20,6 +20,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string|null $from_address
  * @property string|null $from_name
  * @property string|null $subject
+ * @property string|null $html_body
+ * @property array|null $variables
  * @property string|null $campaign_id
  * @property string|null $distribution_list_id
  * @property string|null $email_template_id
@@ -59,6 +61,7 @@ class MailgunOutboundEmail extends Model
         'from_address',
         'from_name',
         'html_body',
+        'variables',
         'subject',
         'campaign_id',
         'distribution_list_id',
@@ -86,6 +89,7 @@ class MailgunOutboundEmail extends Model
     protected $casts = [
         'metadata' => 'array',
         'sent_at' => 'datetime',
+        'variables' => 'array',
         'delivered_at' => 'datetime',
         'opened_at' => 'datetime',
         'clicked_at' => 'datetime',
@@ -134,6 +138,14 @@ class MailgunOutboundEmail extends Model
     public function getSubject(): ?string
     {
         return $this->subject;
+    }
+
+    /**
+     * Get the variables.
+     */
+    public function getVariables(): ?array
+    {
+        return $this->variables;
     }
 
     /**

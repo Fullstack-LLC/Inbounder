@@ -73,22 +73,15 @@ class SendTemplatedEmailJob implements ShouldQueue
                 return;
             }
 
-            $options = [
-                'from' => [
-                    'name' => $this->getFromName(),
-                    'address' => $this->getReplyToAddress(),
-                ],
-                'reply_to' => [
-                    'name' => $this->getFromName(),
-                    'address' => $this->getReplyToAddress(),
-                ],
-                'tags' => [
-                    'outbound_message_id:' . $uid,
-                ],
+            $variables = [
+                'from' => $this->getFromName(),
+                'address' => $this->getReplyToAddress(),
+                'reply_to_name' => $this->getFromName(),
+                'reply_to_address' => $this->getReplyToAddress(),
+                'tags' => 'outbound_message_id:' . $uid,
+                'body' => $this->email->stripped_html,
+                'subject' => $this->email->subject,
             ];
-
-            // Merge options with the default options
-            $this->options = array_merge($this->options, $options);
 
             // Create the outbound email
             $outboundEmail = MailgunOutboundEmail::create([
@@ -97,6 +90,7 @@ class SendTemplatedEmailJob implements ShouldQueue
                 'from_address' => $this->getReplyToAddress(),
                 'from_name' => $this->getFromName(),
                 'html_body' => $this->email->stripped_html,
+                'variables' => $variables,
                 'distribution_list_id' => $this->list->id,
                 'email_template_id' => $this->list->email_template_id,
                 'user_id' => $this->user->id,
@@ -104,7 +98,6 @@ class SendTemplatedEmailJob implements ShouldQueue
                 'sent_at' => Carbon::now(),
                 'status' => 'sent',
                 'metadata' => [
-                    'variables' => $this->variables,
                     'options' => $this->options,
                 ],
             ]);
@@ -117,7 +110,7 @@ class SendTemplatedEmailJob implements ShouldQueue
                 $this->user,
                 $outboundEmail,
                 $template,
-                $this->variables,
+                $variables,
                 $this->options
             );
 

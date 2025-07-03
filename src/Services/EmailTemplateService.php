@@ -114,8 +114,10 @@ class EmailTemplateService
          */
          $html_content = $template->html_content;
 
-         foreach ($variables as $key => $value) {
-            $html_content = str_replace('{{' . $key . '}}', $value, $html_content);
+         logger()->info('Variables', $variables);
+
+         foreach ($template->variables as $value) {
+            $html_content = str_replace('{{' . $value . '}}', $outboundEmail->variables[$value], $html_content);
          }
 
         /**
