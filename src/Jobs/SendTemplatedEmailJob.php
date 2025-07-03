@@ -83,6 +83,11 @@ class SendTemplatedEmailJob implements ShouldQueue
                 'subject' => $this->email->subject,
             ];
 
+            logger()->info('Content ID Map', $this->email->content_id_map);
+
+            // Merge the variables with the content_id_map
+            $variables = array_merge($variables, $this->email->content_id_map);
+
             // Create the outbound email
             $outboundEmail = MailgunOutboundEmail::create([
                 'message_id' => $uid,
