@@ -109,7 +109,6 @@ class EmailTemplateService
      */
     public function renderTemplate(User $user, EmailTemplate $template, MailgunOutboundEmail $outboundEmail, array $variables = []): array
     {
-
         /**
          * Swap each of the variables in the template with the values from the outbound email.
          */
@@ -163,7 +162,7 @@ class EmailTemplateService
          */
         $stillMissing = array_filter($required, fn($var) => !array_key_exists($var, $variables));
         if (!empty($stillMissing)) {
-            throw new \InvalidArgumentException('Missing required variables: '.implode(', ', $stillMissing));
+            logger()->error('Missing required variables: '.implode(', ', $stillMissing));
         }
 
         return [

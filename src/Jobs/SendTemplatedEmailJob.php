@@ -96,7 +96,7 @@ class SendTemplatedEmailJob implements ShouldQueue
                 'recipient' => $this->user->email,
                 'from_address' => $this->getReplyToAddress(),
                 'from_name' => $this->getFromName(),
-                'html_body' => $this->email->body_html,
+                'html_body' => $this->email->stripped_html,
                 'distribution_list_id' => $this->list->id,
                 'email_template_id' => $this->list->email_template_id,
                 'user_id' => $this->user->id,

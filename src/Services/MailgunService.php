@@ -171,6 +171,7 @@ class MailgunService
                 'message' => 'Webhook processed successfully',
             ];
         } catch (MailgunTrackingException $e) {
+
             logger()->notice($e->getMessage());
 
             return [
