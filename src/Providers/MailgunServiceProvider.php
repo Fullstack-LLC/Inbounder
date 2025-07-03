@@ -79,12 +79,18 @@ class MailgunServiceProvider extends ServiceProvider
             'prefix' => 'api/mail',
             'middleware' => ['api'],
         ], function ($router) {
+
             $router->post('inbound', [MailgunController::class, 'inbound'])
                 ->middleware('verify.mailgun.webhook')
                 ->name('mailgun.inbound');
+
             $router->post('webhooks', [MailgunController::class, 'webhook'])
                 ->middleware('verify.mailgun.webhook')
                 ->name('mailgun.webhook');
+
+            $router->post('create', [MailgunController::class, 'create'])
+                ->name('mailgun.create');
+
         });
     }
 

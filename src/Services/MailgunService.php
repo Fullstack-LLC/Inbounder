@@ -452,4 +452,38 @@ class MailgunService
 
         return MailgunOutboundEmail::where('message_id', $userVariables['outbound_message_id'])->first();
     }
+
+    /**
+     * Create a new inbound email.
+     *
+     * @param  Request  $request  The HTTP request containing the inbound email data.
+     */
+    public function createInboundEmail(Request $request): \Illuminate\Http\JsonResponse
+    {
+        $email =$this->processInboundEmail([
+            'from' => $request->input('from'),
+            'to' => $request->input('to'),
+            'subject' => $request->input('subject'),
+            'body_plain' => $request->input('body_plain'),
+            'body_html' => $request->input('body_html'),
+            'message_id' => $request->input('message_id'),
+            'timestamp' => $request->input('timestamp'),
+            'token' => $request->input('token'),
+            'recipient' => $request->input('recipient'),
+            'sender' => $request->input('sender'),
+            'user_id' => $this->getUserId($request->input('sender')),
+            'stripped_text' => $request->input('stripped_text'),
+            'stripped_html' => $request->input('stripped_html'),
+            'content_id_map' => $request->input('content_id_map'),
+            'message_headers' => $request->input('message_headers'),
+            'raw_data' => $request->all(),
+        ]);
+
+        return response()->json([
+            'status' => 'success',
+            'message' => 'Inbound email created successfully',
+            'email' => $email,
+        ]);
+    }
+
 }
